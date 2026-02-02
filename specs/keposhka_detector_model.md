@@ -994,13 +994,13 @@ Estas métricas mejorarán significativamente conforme crezca el dataset.
 - [x] Crear repositorio `keposhka_detector`
 - [x] Inicializar proyecto con `uv init`
 - [x] Instalar dependencias con `uv add ultralytics torch torchvision numpy pyyaml opencv-python mlflow`
-- [ ] Verificar drivers NVIDIA (`nvidia-smi`)
-- [ ] Reinstalar PyTorch con CUDA (`uv pip install torch torchvision --index-url ...`)
-- [ ] Verificar CUDA funcional (`torch.cuda.is_available()`)
-- [ ] Crear estructura de carpetas (`data/`, `configs/`, `scripts/`)
-- [ ] Copiar imágenes y anotaciones desde proyecto de labeling
-- [ ] Crear `classes.txt` con las 70 clases
-- [ ] Ejecutar `analyze_dataset.py` para verificar distribución
+- [x] Verificar drivers NVIDIA (`nvidia-smi`)
+- [x] Reinstalar PyTorch con CUDA (`uv pip install torch torchvision --torch-backend=auto`)
+- [x] Verificar CUDA funcional (`torch.cuda.is_available()`)
+- [x] Crear estructura de carpetas (`data/`, `configs/`, `scripts/`)
+- [x] Copiar imágenes y anotaciones desde proyecto de labeling
+- [x] Crear `classes.txt` con las 70 clases
+- [x] Ejecutar `analyze_dataset.py` para verificar distribución
 - [ ] Asegurar cobertura de todas las clases (anotar más si faltan)
 
 ### Fase 2: Entrenamiento Inicial
