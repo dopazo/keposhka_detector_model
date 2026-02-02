@@ -1,0 +1,15 @@
+[project]
+name = "keposhka-detector-model"
+version = "0.1.0"
+description = "YOLO v11 model for Keposhka character detection"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "mlflow>=3.9.0",
+    "numpy>=2.4.2",
+    "opencv-python>=4.13.0.90",
+    "pyyaml>=6.0.3",
+    "torch>=2.10.0",
+    "torchvision>=0.25.0",
+    "ultralytics>=8.4.9",
+]
