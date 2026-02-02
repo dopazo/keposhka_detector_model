@@ -1,0 +1,36 @@
+# Modelo base
+model: yolo11n.pt  # Opciones: yolo11n/s/m/l/x
+
+# Entrenamiento
+epochs: 100
+patience: 20          # Early stopping
+batch: 16             # Ajustar según VRAM
+imgsz: 640            # Tamaño de imagen
+
+# Optimizador
+optimizer: AdamW
+lr0: 0.001            # Learning rate inicial
+lrf: 0.01             # Learning rate final (lr0 * lrf)
+momentum: 0.937
+weight_decay: 0.0005
+
+# Augmentation
+hsv_h: 0.015          # Hue
+hsv_s: 0.7            # Saturation
+hsv_v: 0.4            # Value
+degrees: 20.0         # Rotación ±20° (para texto en arcos)
+translate: 0.1
+scale: 0.5
+shear: 2.0
+perspective: 0.0005   # Distorsión de perspectiva
+flipud: 0.0           # Sin flip vertical (texto)
+fliplr: 0.0           # Sin flip horizontal (texto direccional)
+mosaic: 0.2           # Reducido para preservar caracteres pequeños
+mixup: 0.1
+
+# Otros
+workers: 8
+device: 0             # GPU index
+project: runs
+exist_ok: true
+verbose: true
