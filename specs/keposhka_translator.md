@@ -8,7 +8,7 @@ Crear una aplicación móvil que permita:
 1. Tomar o cargar fotos con texto Keposhka
 2. Detectar y clasificar caracteres automáticamente (offline)
 3. Mostrar la traducción superpuesta sobre cada carácter con blur de fondo
-4. Comparar imagen original vs. traducida lado a lado
+4. Verificar traducción comparando imagen original vs. traducida lado a lado
 5. Mostrar referencia de caracteres para manejo de errores
 
 ## Stack Tecnológico
@@ -22,17 +22,6 @@ Crear una aplicación móvil que permita:
 - **Navegación**: GoRouter
 - **Almacenamiento local**: SharedPreferences
 
-### Justificación de Flutter sobre React Native
-
-| Criterio | Flutter | React Native |
-|----------|---------|--------------|
-| Rendimiento TFLite | Nativo via `tflite_flutter` | Requiere bridge JS, más latencia |
-| Tamaño del bundle | ~15-20MB | ~25-35MB |
-| Hot reload | Excelente | Bueno |
-| Renderizado | Skia (consistente) | Componentes nativos (variación) |
-| Complejidad TFLite | Baja (paquetes maduros) | Media (plugins nativos) |
-| Procesamiento imagen | Dart `image` package | Necesita módulos nativos |
-
 ## Arquitectura de la App
 
 ### Estructura de Carpetas
@@ -43,14 +32,9 @@ keposhka_translator/
 ├── assets/
 │   ├── fonts/
 │   │   ├── Oswald-*.ttf       # Fuente principal UI
-│   │   └── KeposhkaRegular.otf # Fuente Keposhka
-│   ├── models/
-│   │   └── keposhka_detector.tflite  # Modelo YOLO
-│   └── images/
-│       └── keposhka_reference/ # Imágenes de referencia (70 caracteres)
-│           ├── 0.png
-│           ├── 1.png
-│           └── ... (A-Z, a-z, dígrafos)
+│   │   └── KeposhkaRegular.otf # Fuente Keposhka (incluye todos los glifos)
+│   └── models/
+│       └── keposhka_detector.tflite  # Modelo YOLO
 │
 ├── lib/
 │   ├── main.dart
@@ -76,8 +60,8 @@ keposhka_translator/
 │   │   │   ├── translation_overlay.dart   # Widget de overlay con blur
 │   │   │   └── translation_provider.dart  # Estado de traducción
 │   │   │
-│   │   ├── comparison/
-│   │   │   ├── comparison_screen.dart     # Vista lado a lado
+│   │   ├── verification/
+│   │   │   ├── verification_screen.dart     # Vista lado a lado
 │   │   │   └── reference_grid.dart        # Grid de caracteres
 │   │   │
 │   │   └── home/
@@ -113,25 +97,41 @@ keposhka_translator/
 
 ## Diseño Visual
 
-### Sistema de Colores (Keposhka Regime)
+### Tema: Brutalismo/Distópico con Influencia Soviética
+
+**Concepto:** Interfaz institucional, rígida y opresiva, como una agencia de policía secreta catalogando un idioma ficticio. Inspirado en propaganda constructivista soviética y estética industrial.
+
+| Aspecto | Descripción |
+|---------|-------------|
+| **Colores** | Rojo propagandístico (#89181A) + negro + crema |
+| **Tipografía** | Pesada e industrial con espaciado amplio (tracking) |
+| **Sombras** | Offset brutal (4px) en vez de drops suaves |
+| **Bordes** | Gruesos, sólidos, sin border-radius |
+| **Texturas** | Líneas de escaneo, rayas diagonales 45°, ruido |
+| **Animaciones** | Escaneo, parpadeo CRT, stamp "APROBADO" |
+| **Interacción** | Botones con efecto "punch" (se hunden al presionar) |
+
+### Sistema de Colores (Draag Regime Palette)
 
 ```dart
 // app_colors.dart
 class AppColors {
-  // Colores principales
-  static const keposhkaRed = Color(0xFF89181A);
-  static const keposhkaRedDark = Color(0xFF6B1315);
-  static const keposhkaRedLight = Color(0xFFA51E21);
+  // === Colores principales ===
+  static const keposhkaRed = Color(0xFF89181A);      // Rojo propagandístico
+  static const keposhkaRedDark = Color(0xFF6B1315); // Hover/pressed
+  static const keposhkaRedLight = Color(0xFFA51E21); // Accent
 
-  // Neutrales
+  // === Neutrales ===
   static const keposhkaBlack = Color(0xFF000000);
   static const keposhkaWhite = Color(0xFFFFFFFF);
-  static const keposhkaCream = Color(0xFFF5F0E6);
-  static const keposhkaSteel = Color(0xFF2A2A2A);
-  static const keposhkaConcrete = Color(0xFF1A1A1A);
+  static const keposhkaCream = Color(0xFFF5F0E6);    // Texto principal sobre fondo oscuro
+  static const keposhkaSteel = Color(0xFF2A2A2A);    // Bordes, elementos secundarios
+  static const keposhkaConcrete = Color(0xFF1A1A1A); // Fondo principal
+  static const keposhkaRust = Color(0xFF4A1A1B);     // Accent oscuro
 
-  // Funcionales
-  static const success = Color(0xFF2D5016);
+  // === Funcionales ===
+  static const success = Color(0xFF2D5016);          // Verde oscuro militar
+  static const successLight = Color(0xFF4A7C23);
   static const warning = Color(0xFF8B6914);
   static const error = keposhkaRed;
 }
@@ -139,71 +139,1102 @@ class AppColors {
 
 ### Tipografía
 
+**Fuentes requeridas:**
+- **Bebas Neue** - Display/títulos grandes (constructivista)
+- **Oswald** - Headings y UI general (industrial)
+- **JetBrains Mono** - Código, datos, IDs (monospace)
+- **Keposhka** - Glifos del idioma ficticio
+
 ```dart
 // app_typography.dart
 class AppTypography {
-  // Títulos - Oswald Bold
+  // === Display - Bebas Neue (títulos grandes, propaganda) ===
   static const displayLarge = TextStyle(
+    fontFamily: 'BebasNeue',
+    fontSize: 48,
+    fontWeight: FontWeight.w400,
+    letterSpacing: 4.0,  // Tracking amplio
+    height: 1.0,
+  );
+
+  // === Headings - Oswald (subtítulos, labels) ===
+  static const headingLarge = TextStyle(
     fontFamily: 'Oswald',
-    fontSize: 32,
+    fontSize: 24,
     fontWeight: FontWeight.w700,
     letterSpacing: 3.0,
   );
 
-  // Subtítulos
-  static const titleMedium = TextStyle(
+  static const headingMedium = TextStyle(
     fontFamily: 'Oswald',
     fontSize: 18,
+    fontWeight: FontWeight.w500,
+    letterSpacing: 2.0,
+  );
+
+  static const headingSmall = TextStyle(
+    fontFamily: 'Oswald',
+    fontSize: 14,
     fontWeight: FontWeight.w500,
     letterSpacing: 1.5,
   );
 
-  // Texto de traducción superpuesto
+  // === Monospace - JetBrains Mono (datos, IDs, código) ===
+  static const mono = TextStyle(
+    fontFamily: 'JetBrainsMono',
+    fontSize: 12,
+    fontWeight: FontWeight.w400,
+    letterSpacing: 0,
+  );
+
+  static const monoSmall = TextStyle(
+    fontFamily: 'JetBrainsMono',
+    fontSize: 10,
+    fontWeight: FontWeight.w400,
+  );
+
+  // === Texto de traducción superpuesto ===
   static const translationOverlay = TextStyle(
     fontFamily: 'Oswald',
     fontSize: 24,
     fontWeight: FontWeight.w700,
     color: AppColors.keposhkaCream,
     shadows: [
-      Shadow(offset: Offset(2, 2), color: AppColors.keposhkaBlack),
+      Shadow(offset: Offset(2, 2), blurRadius: 0, color: AppColors.keposhkaBlack),
     ],
   );
 
-  // Texto Keposhka (para referencia)
-  static const keposhkaText = TextStyle(
+  // === Keposhka (glifos del idioma) ===
+  static const keposhkaLarge = TextStyle(
     fontFamily: 'Keposhka',
     fontSize: 32,
   );
+
+  static const keposhkaMedium = TextStyle(
+    fontFamily: 'Keposhka',
+    fontSize: 24,
+  );
+}
+```
+
+### Sombras Brutales
+
+```dart
+// app_shadows.dart
+class AppShadows {
+  // Sombra brutal estándar (4px offset, sin blur)
+  static const brutal = BoxShadow(
+    color: AppColors.keposhkaRed,
+    offset: Offset(4, 4),
+    blurRadius: 0,
+    spreadRadius: 0,
+  );
+
+  // Sombra brutal pequeña
+  static const brutalSm = BoxShadow(
+    color: AppColors.keposhkaRed,
+    offset: Offset(2, 2),
+    blurRadius: 0,
+    spreadRadius: 0,
+  );
+
+  // Sombra brutal negra (para botones secundarios)
+  static const brutalBlack = BoxShadow(
+    color: AppColors.keposhkaBlack,
+    offset: Offset(4, 4),
+    blurRadius: 0,
+    spreadRadius: 0,
+  );
+
+  // Inner glow (para panels activos)
+  static const innerGlow = BoxShadow(
+    color: Color(0x4D89181A), // keposhkaRed con 30% opacity
+    offset: Offset.zero,
+    blurRadius: 20,
+    spreadRadius: -5,
+  );
+}
+```
+
+### Animaciones
+
+```dart
+// lib/core/theme/app_animations.dart
+
+import 'dart:math';
+import 'package:flutter/material.dart';
+
+/// Efecto de escaneo vertical (como monitor CRT)
+/// Línea semi-transparente que baja por la pantalla
+class ScanlineEffect extends StatefulWidget {
+  final Widget child;
+  final Duration duration;
+
+  const ScanlineEffect({
+    super.key,
+    required this.child,
+    this.duration = const Duration(seconds: 8),
+  });
+
+  @override
+  State<ScanlineEffect> createState() => _ScanlineEffectState();
+}
+
+class _ScanlineEffectState extends State<ScanlineEffect>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(vsync: this, duration: widget.duration)
+      ..repeat();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      children: [
+        widget.child,
+        Positioned.fill(
+          child: IgnorePointer(
+            child: AnimatedBuilder(
+              animation: _controller,
+              builder: (context, _) {
+                return CustomPaint(
+                  painter: _ScanlinePainter(progress: _controller.value),
+                );
+              },
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ScanlinePainter extends CustomPainter {
+  final double progress;
+
+  _ScanlinePainter({required this.progress});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = Colors.white.withOpacity(0.03)
+      ..strokeWidth = 2;
+
+    final y = size.height * progress;
+    canvas.drawLine(Offset(0, y), Offset(size.width, y), paint);
+  }
+
+  @override
+  bool shouldRepaint(_ScanlinePainter oldDelegate) =>
+      oldDelegate.progress != progress;
+}
+
+/// Efecto de parpadeo sutil (CRT flicker)
+/// Opacidad oscila entre 1.0 y 0.95
+class FlickerEffect extends StatefulWidget {
+  final Widget child;
+
+  const FlickerEffect({super.key, required this.child});
+
+  @override
+  State<FlickerEffect> createState() => _FlickerEffectState();
+}
+
+class _FlickerEffectState extends State<FlickerEffect>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _opacity;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 150),
+    )..repeat(reverse: true);
+
+    _opacity = Tween<double>(begin: 1.0, end: 0.95).animate(_controller);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FadeTransition(opacity: _opacity, child: widget.child);
+  }
+}
+
+/// Efecto de sello "APROBADO" / "TRADUCIDO"
+/// Escala: 1.5 → 0.95 → 1.0, Rotación: -15° → -12°
+class StampEffect extends StatefulWidget {
+  final String text;
+  final bool show;
+  final VoidCallback? onComplete;
+
+  const StampEffect({
+    super.key,
+    this.text = 'APROBADO',
+    this.show = false,
+    this.onComplete,
+  });
+
+  @override
+  State<StampEffect> createState() => _StampEffectState();
+}
+
+class _StampEffectState extends State<StampEffect>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _scale;
+  late Animation<double> _rotation;
+  late Animation<double> _opacity;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 300),
+    );
+
+    // Escala: 1.5 → 0.95 → 1.0
+    _scale = TweenSequence<double>([
+      TweenSequenceItem(tween: Tween(begin: 1.5, end: 0.95), weight: 70),
+      TweenSequenceItem(tween: Tween(begin: 0.95, end: 1.0), weight: 30),
+    ]).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOut));
+
+    // Rotación: -15° → -12°
+    _rotation = Tween<double>(
+      begin: -15 * pi / 180,
+      end: -12 * pi / 180,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOut));
+
+    // Opacidad: 0 → 1
+    _opacity = Tween<double>(begin: 0, end: 1).animate(
+      CurvedAnimation(parent: _controller, curve: const Interval(0, 0.7)),
+    );
+
+    _controller.addStatusListener((status) {
+      if (status == AnimationStatus.completed) {
+        widget.onComplete?.call();
+      }
+    });
+  }
+
+  @override
+  void didUpdateWidget(StampEffect oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.show && !oldWidget.show) {
+      _controller.forward(from: 0);
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, child) {
+        if (_opacity.value == 0) return const SizedBox.shrink();
+
+        return Opacity(
+          opacity: _opacity.value,
+          child: Transform.scale(
+            scale: _scale.value,
+            child: Transform.rotate(
+              angle: _rotation.value,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                decoration: BoxDecoration(
+                  border: Border.all(color: AppColors.keposhkaRed, width: 3),
+                  color: Colors.transparent,
+                ),
+                child: Text(
+                  widget.text,
+                  style: AppTypography.headingLarge.copyWith(
+                    color: AppColors.keposhkaRed,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+```
+
+### Texturas y Efectos
+
+```dart
+// lib/core/theme/app_decorations.dart
+
+import 'dart:math';
+import 'dart:ui' as ui;
+import 'package:flutter/material.dart';
+
+/// Patrón de rayas diagonales soviéticas (45°)
+/// Equivalente a: repeating-linear-gradient(45deg, transparent 0 2px, red/10% 2px 4px)
+class DiagonalStripesOverlay extends StatelessWidget {
+  final Widget child;
+  final Color color;
+  final double stripeWidth;
+  final double gapWidth;
+
+  const DiagonalStripesOverlay({
+    super.key,
+    required this.child,
+    this.color = const Color(0x1A89181A), // keposhkaRed con 10% opacity
+    this.stripeWidth = 2,
+    this.gapWidth = 2,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      children: [
+        child,
+        Positioned.fill(
+          child: IgnorePointer(
+            child: CustomPaint(
+              painter: _DiagonalStripesPainter(
+                color: color,
+                stripeWidth: stripeWidth,
+                gapWidth: gapWidth,
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _DiagonalStripesPainter extends CustomPainter {
+  final Color color;
+  final double stripeWidth;
+  final double gapWidth;
+
+  _DiagonalStripesPainter({
+    required this.color,
+    required this.stripeWidth,
+    required this.gapWidth,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..strokeWidth = stripeWidth
+      ..style = PaintingStyle.stroke;
+
+    final step = stripeWidth + gapWidth;
+    final diagonal = sqrt(size.width * size.width + size.height * size.height);
+
+    // Dibujar líneas diagonales 45°
+    for (double i = -diagonal; i < diagonal * 2; i += step) {
+      canvas.drawLine(
+        Offset(i, 0),
+        Offset(i + size.height, size.height),
+        paint,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(_DiagonalStripesPainter oldDelegate) =>
+      oldDelegate.color != color ||
+      oldDelegate.stripeWidth != stripeWidth ||
+      oldDelegate.gapWidth != gapWidth;
+}
+
+/// Overlay de ruido (noise texture)
+/// Simula textura granulada industrial
+class NoiseOverlay extends StatelessWidget {
+  final Widget child;
+  final double opacity;
+
+  const NoiseOverlay({
+    super.key,
+    required this.child,
+    this.opacity = 0.03,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      children: [
+        child,
+        Positioned.fill(
+          child: IgnorePointer(
+            child: Opacity(
+              opacity: opacity,
+              child: CustomPaint(
+                painter: _NoisePainter(),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _NoisePainter extends CustomPainter {
+  final Random _random = Random(42); // Seed fijo para consistencia
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint();
+    const pixelSize = 2.0;
+
+    for (double x = 0; x < size.width; x += pixelSize) {
+      for (double y = 0; y < size.height; y += pixelSize) {
+        final gray = _random.nextInt(256);
+        paint.color = Color.fromARGB(255, gray, gray, gray);
+        canvas.drawRect(
+          Rect.fromLTWH(x, y, pixelSize, pixelSize),
+          paint,
+        );
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(_NoisePainter oldDelegate) => false;
+}
+
+/// Líneas de escaneo horizontales (CRT effect)
+/// Equivalente a: repeating-linear-gradient(0deg, transparent 0 2px, black/10% 2px 4px)
+class ScanlinesOverlay extends StatelessWidget {
+  final Widget child;
+  final double lineSpacing;
+  final double opacity;
+
+  const ScanlinesOverlay({
+    super.key,
+    required this.child,
+    this.lineSpacing = 4,
+    this.opacity = 0.1,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      children: [
+        child,
+        Positioned.fill(
+          child: IgnorePointer(
+            child: CustomPaint(
+              painter: _ScanlinesPainter(
+                lineSpacing: lineSpacing,
+                opacity: opacity,
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ScanlinesPainter extends CustomPainter {
+  final double lineSpacing;
+  final double opacity;
+
+  _ScanlinesPainter({required this.lineSpacing, required this.opacity});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = Colors.black.withOpacity(opacity)
+      ..strokeWidth = 1;
+
+    for (double y = 0; y < size.height; y += lineSpacing) {
+      canvas.drawLine(Offset(0, y), Offset(size.width, y), paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(_ScanlinesPainter oldDelegate) =>
+      oldDelegate.lineSpacing != lineSpacing || oldDelegate.opacity != opacity;
+}
+
+/// Esquina cortada (cut corner effect)
+/// Equivalente a: clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 0 100%)
+class CutCornerClipper extends CustomClipper<Path> {
+  final double cutSize;
+
+  CutCornerClipper({this.cutSize = 12});
+
+  @override
+  Path getClip(Size size) {
+    return Path()
+      ..moveTo(0, 0)
+      ..lineTo(size.width - cutSize, 0)
+      ..lineTo(size.width, cutSize)
+      ..lineTo(size.width, size.height)
+      ..lineTo(0, size.height)
+      ..close();
+  }
+
+  @override
+  bool shouldReclip(CutCornerClipper oldClipper) =>
+      oldClipper.cutSize != cutSize;
+}
+
+/// Widget helper para aplicar esquina cortada
+class CutCornerContainer extends StatelessWidget {
+  final Widget child;
+  final double cutSize;
+  final Color? backgroundColor;
+  final Color? borderColor;
+  final double borderWidth;
+
+  const CutCornerContainer({
+    super.key,
+    required this.child,
+    this.cutSize = 12,
+    this.backgroundColor,
+    this.borderColor,
+    this.borderWidth = 2,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipPath(
+      clipper: CutCornerClipper(cutSize: cutSize),
+      child: Container(
+        decoration: BoxDecoration(
+          color: backgroundColor ?? AppColors.keposhkaConcrete,
+        ),
+        child: CustomPaint(
+          painter: _CutCornerBorderPainter(
+            cutSize: cutSize,
+            borderColor: borderColor ?? AppColors.keposhkaRed,
+            borderWidth: borderWidth,
+          ),
+          child: child,
+        ),
+      ),
+    );
+  }
+}
+
+class _CutCornerBorderPainter extends CustomPainter {
+  final double cutSize;
+  final Color borderColor;
+  final double borderWidth;
+
+  _CutCornerBorderPainter({
+    required this.cutSize,
+    required this.borderColor,
+    required this.borderWidth,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = borderColor
+      ..strokeWidth = borderWidth
+      ..style = PaintingStyle.stroke;
+
+    final path = Path()
+      ..moveTo(0, 0)
+      ..lineTo(size.width - cutSize, 0)
+      ..lineTo(size.width, cutSize)
+      ..lineTo(size.width, size.height)
+      ..lineTo(0, size.height)
+      ..close();
+
+    canvas.drawPath(path, paint);
+  }
+
+  @override
+  bool shouldRepaint(_CutCornerBorderPainter oldDelegate) =>
+      oldDelegate.cutSize != cutSize ||
+      oldDelegate.borderColor != borderColor ||
+      oldDelegate.borderWidth != borderWidth;
+}
+
+/// Wrapper que combina múltiples efectos (noise + scanlines)
+/// Usar para contenedores principales como el body de RegimePanel
+class RegimeEffectsOverlay extends StatelessWidget {
+  final Widget child;
+  final bool enableNoise;
+  final bool enableScanlines;
+
+  const RegimeEffectsOverlay({
+    super.key,
+    required this.child,
+    this.enableNoise = true,
+    this.enableScanlines = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    Widget result = child;
+
+    if (enableNoise) {
+      result = NoiseOverlay(opacity: 0.03, child: result);
+    }
+
+    if (enableScanlines) {
+      result = ScanlinesOverlay(child: result);
+    }
+
+    return result;
+  }
 }
 ```
 
 ### Componentes de UI Brutalistas
 
 ```dart
-// Botón estilo brutal
-class BrutalButton extends StatelessWidget {
-  final String text;
-  final VoidCallback onPressed;
-  final bool isPrimary;
+// lib/core/widgets/brutal_button.dart
 
-  // Estilo: bordes duros, sombra offset, sin bordes redondeados
-  // Hover/press: sombra se reduce, botón se desplaza
+import 'package:flutter/material.dart';
+
+/// Botón estilo brutal con efecto "punch"
+/// Se hunde al presionar (sombra desaparece, botón se desplaza)
+class BrutalButton extends StatefulWidget {
+  final String text;
+  final VoidCallback? onPressed;
+  final bool isPrimary;
+  final IconData? icon;
+  final double shadowOffset;
+
+  const BrutalButton({
+    super.key,
+    required this.text,
+    this.onPressed,
+    this.isPrimary = true,
+    this.icon,
+    this.shadowOffset = 4,
+  });
+
+  @override
+  State<BrutalButton> createState() => _BrutalButtonState();
 }
 
-// Panel con header de propaganda
+class _BrutalButtonState extends State<BrutalButton> {
+  bool _isPressed = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final backgroundColor = widget.isPrimary
+        ? AppColors.keposhkaRed
+        : AppColors.keposhkaBlack;
+    final textColor = AppColors.keposhkaCream;
+
+    return GestureDetector(
+      onTapDown: (_) => setState(() => _isPressed = true),
+      onTapUp: (_) {
+        setState(() => _isPressed = false);
+        widget.onPressed?.call();
+      },
+      onTapCancel: () => setState(() => _isPressed = false),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 100),
+        transform: Matrix4.translationValues(
+          _isPressed ? widget.shadowOffset : 0,
+          _isPressed ? widget.shadowOffset : 0,
+          0,
+        ),
+        decoration: BoxDecoration(
+          color: backgroundColor,
+          border: Border.all(color: AppColors.keposhkaBlack, width: 2),
+          boxShadow: _isPressed
+              ? []
+              : [
+                  BoxShadow(
+                    color: AppColors.keposhkaBlack,
+                    offset: Offset(widget.shadowOffset, widget.shadowOffset),
+                    blurRadius: 0,
+                  ),
+                ],
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            if (widget.icon != null) ...[
+              Icon(widget.icon, color: textColor, size: 20),
+              const SizedBox(width: 8),
+            ],
+            Text(
+              widget.text.toUpperCase(),
+              style: AppTypography.headingMedium.copyWith(
+                color: textColor,
+                letterSpacing: 2,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// lib/core/widgets/regime_panel.dart
+
+/// Panel con header de propaganda estilo soviético
 class RegimePanel extends StatelessWidget {
   final String title;
   final Widget child;
+  final String? badge;
+  final IconData? icon;
+  final String? subtitle;
 
-  // Header rojo con patrón diagonal 45°
-  // Borde inferior grueso negro
-  // Tracking de letras amplio, uppercase
+  const RegimePanel({
+    super.key,
+    required this.title,
+    required this.child,
+    this.badge,
+    this.icon,
+    this.subtitle,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // === HEADER ===
+        Container(
+          decoration: const BoxDecoration(
+            color: AppColors.keposhkaRed,
+            border: Border(
+              bottom: BorderSide(color: AppColors.keposhkaBlack, width: 4),
+            ),
+          ),
+          child: DiagonalStripesOverlay(
+            color: AppColors.keposhkaBlack.withOpacity(0.1),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              child: Row(
+                children: [
+                  // Icono cuadrado
+                  if (icon != null)
+                    Container(
+                      width: 32,
+                      height: 32,
+                      margin: const EdgeInsets.only(right: 12),
+                      decoration: BoxDecoration(
+                        color: AppColors.keposhkaBlack,
+                        border: Border.all(
+                          color: AppColors.keposhkaCream.withOpacity(0.2),
+                        ),
+                      ),
+                      child: Icon(icon, color: AppColors.keposhkaCream, size: 18),
+                    ),
+                  // Título y subtítulo
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          title.toUpperCase(),
+                          style: AppTypography.headingMedium.copyWith(
+                            color: AppColors.keposhkaWhite,
+                            letterSpacing: 3,
+                          ),
+                        ),
+                        if (subtitle != null)
+                          Text(
+                            subtitle!.toUpperCase(),
+                            style: AppTypography.monoSmall.copyWith(
+                              color: AppColors.keposhkaCream.withOpacity(0.6),
+                              letterSpacing: 2,
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                  // Badge
+                  if (badge != null)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.keposhkaBlack,
+                        border: Border.all(
+                          color: AppColors.keposhkaCream.withOpacity(0.3),
+                        ),
+                      ),
+                      child: Text(
+                        badge!,
+                        style: AppTypography.monoSmall.copyWith(
+                          color: AppColors.keposhkaCream,
+                          letterSpacing: 1,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        // === BODY ===
+        Expanded(
+          child: Container(
+            decoration: const BoxDecoration(
+              color: AppColors.keposhkaConcrete,
+              border: Border(
+                left: BorderSide(color: AppColors.keposhkaBlack, width: 4),
+              ),
+            ),
+            child: NoiseOverlay(
+              opacity: 0.03,
+              child: child,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
 }
 
-// Card con esquina cortada
+// lib/core/widgets/regime_badge.dart
+
+/// Badge de clasificación estilo documento oficial
+class RegimeBadge extends StatelessWidget {
+  final String text;
+  final Color? backgroundColor;
+  final Color? textColor;
+
+  const RegimeBadge({
+    super.key,
+    required this.text,
+    this.backgroundColor,
+    this.textColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: backgroundColor ?? AppColors.keposhkaRed,
+        border: Border.all(color: AppColors.keposhkaBlack),
+      ),
+      child: Text(
+        text.toUpperCase(),
+        style: AppTypography.monoSmall.copyWith(
+          color: textColor ?? AppColors.keposhkaWhite,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+    );
+  }
+}
+
+// lib/core/widgets/file_list_item.dart
+
+/// Item de lista estilo archivo clasificado
+class FileListItem extends StatelessWidget {
+  final String filename;
+  final bool isActive;
+  final bool isDone;
+  final VoidCallback? onTap;
+
+  const FileListItem({
+    super.key,
+    required this.filename,
+    this.isActive = false,
+    this.isDone = false,
+    this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 100),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: isActive
+              ? AppColors.keposhkaRed
+              : AppColors.keposhkaSteel.withOpacity(0.3),
+          border: Border(
+            left: BorderSide(
+              color: isActive
+                  ? AppColors.keposhkaWhite
+                  : AppColors.keposhkaRed,
+              width: 4,
+            ),
+          ),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                filename,
+                style: AppTypography.mono.copyWith(
+                  color: isActive
+                      ? AppColors.keposhkaWhite
+                      : AppColors.keposhkaCream,
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            if (isDone)
+              Text(
+                '✓',
+                style: TextStyle(
+                  color: isActive
+                      ? AppColors.keposhkaWhite
+                      : AppColors.keposhkaRed,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// lib/core/widgets/cut_corner_card.dart
+
+/// Card con esquina cortada estilo industrial
 class CutCornerCard extends StatelessWidget {
-  // clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 0 100%)
+  final Widget child;
+  final double cutSize;
+  final Color? backgroundColor;
+  final bool showShadow;
+
+  const CutCornerCard({
+    super.key,
+    required this.child,
+    this.cutSize = 12,
+    this.backgroundColor,
+    this.showShadow = true,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: showShadow
+          ? const BoxDecoration(
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.keposhkaBlack,
+                  offset: Offset(4, 4),
+                  blurRadius: 0,
+                ),
+              ],
+            )
+          : null,
+      child: CutCornerContainer(
+        cutSize: cutSize,
+        backgroundColor: backgroundColor ?? AppColors.keposhkaConcrete,
+        borderColor: AppColors.keposhkaRed,
+        borderWidth: 2,
+        child: child,
+      ),
+    );
+  }
 }
+
+// lib/core/widgets/industrial_input.dart
+
+/// Input field estilo industrial/terminal
+class IndustrialInput extends StatelessWidget {
+  final TextEditingController? controller;
+  final String? hintText;
+  final ValueChanged<String>? onChanged;
+  final bool readOnly;
+
+  const IndustrialInput({
+    super.key,
+    this.controller,
+    this.hintText,
+    this.onChanged,
+    this.readOnly = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.keposhkaBlack,
+        border: Border.all(color: AppColors.keposhkaSteel, width: 2),
+      ),
+      child: TextField(
+        controller: controller,
+        onChanged: onChanged,
+        readOnly: readOnly,
+        style: AppTypography.mono.copyWith(color: AppColors.keposhkaCream),
+        decoration: InputDecoration(
+          hintText: hintText,
+          hintStyle: AppTypography.mono.copyWith(color: AppColors.keposhkaSteel),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          border: InputBorder.none,
+          focusedBorder: InputBorder.none,
+        ),
+        cursorColor: AppColors.keposhkaRed,
+      ),
+    );
+  }
+}
+```
+
+### Archivos de Referencia de Diseño
+
+Los estilos están basados en el proyecto `keposhka_labeling`:
+
+```
+keposhka_labeling/frontend/
+├── tailwind.config.js    # Colores, fuentes, sombras, animaciones
+├── src/index.css         # Clases CSS, componentes, keyframes
+└── package.json          # Fuentes de Google (Bebas Neue, Oswald)
+```
+
+**Fuentes en pubspec.yaml:**
+```yaml
+flutter:
+  fonts:
+    - family: BebasNeue
+      fonts:
+        - asset: assets/fonts/BebasNeue-Regular.ttf
+    - family: Oswald
+      fonts:
+        - asset: assets/fonts/Oswald-Regular.ttf
+        - asset: assets/fonts/Oswald-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/Oswald-Bold.ttf
+          weight: 700
+    - family: JetBrainsMono
+      fonts:
+        - asset: assets/fonts/JetBrainsMono-Regular.ttf
+    - family: Keposhka
+      fonts:
+        - asset: assets/fonts/KeposhkaRegular.otf
 ```
 
 ## Funcionalidades Detalladas
@@ -211,7 +1242,7 @@ class CutCornerCard extends StatelessWidget {
 ### 1. Pantalla de Inicio (HomeScreen)
 
 **Elementos:**
-- Logo Keposhka (opcional)
+- Logo Keposhka (opcional) ("Keposhka Translator" con fuente y letras en Keposhka)
 - Botón "TOMAR FOTO" (abre cámara)
 - Botón "SELECCIONAR IMAGEN" (abre galería)
 - Enlace "VER REFERENCIA" (muestra grid de caracteres)
@@ -237,8 +1268,9 @@ class CutCornerCard extends StatelessWidget {
 
 **Elementos principales:**
 - Imagen con overlay de traducción
-- Botón "COMPARAR" (floating, esquina inferior)
+- Botón "VERIFICAR" (floating, esquina inferior)
 - Indicador de caracteres detectados
+- Botón de guardar foto (guardar original, guardar traducción, pues no se guarda automáticamente en galería)
 
 **Overlay de traducción:**
 ```dart
@@ -273,7 +1305,57 @@ const classLabels = [
 ];
 ```
 
-### 4. Pantalla de Comparación (ComparisonScreen)
+**Mapeo de etiquetas a caracteres de fuente Keposhka:**
+
+La fuente Keposhka usa caracteres especiales para representar los dígrafos:
+
+```dart
+// keposhka_font_map.dart
+/// Mapea etiquetas de clase al carácter correspondiente en la fuente Keposhka.
+/// Para letras y números es mapeo directo (A→A, a→a, 0→0).
+/// Para dígrafos se usan caracteres especiales.
+const keposhkaFontMap = {
+  // Números - mapeo directo
+  '0': '0', '1': '1', '2': '2', '3': '3', '4': '4',
+  '5': '5', '6': '6', '7': '7', '8': '8', '9': '9',
+
+  // Letras - mapeo directo
+  'A': 'A', 'a': 'a', 'B': 'B', 'b': 'b', 'C': 'C', 'c': 'c',
+  'D': 'D', 'd': 'd', 'E': 'E', 'e': 'e', 'F': 'F', 'f': 'f',
+  'G': 'G', 'g': 'g', 'H': 'H', 'h': 'h', 'I': 'I', 'i': 'i',
+  'J': 'J', 'j': 'j', 'K': 'K', 'k': 'k', 'L': 'L', 'l': 'l',
+  'M': 'M', 'm': 'm', 'N': 'N', 'n': 'n', 'O': 'O', 'o': 'o',
+  'P': 'P', 'p': 'p', 'Q': 'Q', 'q': 'q', 'R': 'R', 'r': 'r',
+  'S': 'S', 's': 's', 'T': 'T', 't': 't', 'U': 'U', 'u': 'u',
+  'V': 'V', 'v': 'v', 'W': 'W', 'w': 'w', 'X': 'X', 'x': 'x',
+  'Y': 'Y', 'y': 'y', 'Z': 'Z', 'z': 'z',
+
+  // Dígrafos - caracteres especiales en la fuente
+  'CH': '(',   // Paréntesis abierto
+  'ch': ')',   // Paréntesis cerrado
+  'GH': '\\',  // Backslash
+  'gh': '|',   // Pipe
+  'TH': '[',   // Corchete abierto
+  'th': ']',   // Corchete cerrado
+  'SH': '{',   // Llave abierta
+  'sh': '}',   // Llave cerrada
+};
+
+/// Obtiene el carácter de fuente Keposhka para una etiqueta de clase
+String getKeposhkaChar(String label) => keposhkaFontMap[label] ?? label;
+```
+
+**Uso en el ReferenceGrid:**
+```dart
+// Para mostrar un glifo Keposhka:
+Text(
+  getKeposhkaChar('CH'),  // Retorna '('
+  style: TextStyle(fontFamily: 'Keposhka', fontSize: 32),
+)
+// La fuente renderiza '(' como el glifo Keposhka para "CH"
+```
+
+### 4. Pantalla de Verificación (VerificationScreen)
 
 **Layout:**
 ```
@@ -310,17 +1392,58 @@ const classLabels = [
 **Propósito:** Ayudar al usuario a verificar/corregir errores de detección
 
 **Layout:**
-- Grid de 7-8 columnas
+- Grid de 6 columnas
 - 70 celdas (una por clase)
 - Cada celda muestra:
   - Letra latina (arriba, fuente Oswald)
-  - Glifo Keposhka (abajo, fuente Keposhka o imagen PNG)
+  - Glifo Keposhka (abajo, usando fuente Keposhka con `getKeposhkaChar()`)
+  - ID de clase (pequeño, abajo)
 
-**Organización por grupos:**
+**Organización por grupos (similar a ReferencePanel de keposhka_labeling):**
 ```
-DÍGITOS:     0-9 (10 celdas)
-MAYÚSCULAS:  A-Z + CH, GH, SH, TH (30 celdas)
-MINÚSCULAS:  a-z + ch, gh, sh, th (30 celdas)
+MAYÚSCULAS:  A-Z (26 celdas)
+MINÚSCULAS:  a-z (26 celdas)
+DÍGRAFOS:    CH, ch, GH, gh, SH, sh, TH, th (8 celdas, grid 2 columnas)
+NÚMEROS:     0-9 (10 celdas, grid 5 columnas)
+```
+
+**Implementación:**
+```dart
+// reference_grid.dart
+class ReferenceGrid extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        _buildSection('MAYÚSCULAS', 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('')),
+        _buildSection('MINÚSCULAS', 'abcdefghijklmnopqrstuvwxyz'.split('')),
+        _buildDigraphSection(),
+        _buildSection('NÚMEROS', '0123456789'.split(''), columns: 5),
+      ],
+    );
+  }
+
+  Widget _buildCharCell(String label) {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.keposhkaSteel.withOpacity(0.3),
+        border: Border.all(color: AppColors.keposhkaSteel),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          // Etiqueta latina
+          Text(label, style: TextStyle(fontFamily: 'Oswald', fontSize: 12)),
+          // Glifo Keposhka
+          Text(
+            getKeposhkaChar(label),
+            style: TextStyle(fontFamily: 'Keposhka', fontSize: 24),
+          ),
+        ],
+      ),
+    );
+  }
+}
 ```
 
 ## Servicio de Detección (TFLite)
@@ -499,20 +1622,32 @@ flutter:
   uses-material-design: true
 
   fonts:
+    # Display - Constructivista (títulos grandes)
+    - family: BebasNeue
+      fonts:
+        - asset: assets/fonts/BebasNeue-Regular.ttf
+
+    # Headings - Industrial (subtítulos, UI)
     - family: Oswald
       fonts:
         - asset: assets/fonts/Oswald-Regular.ttf
-        - asset: assets/fonts/Oswald-Bold.ttf
-          weight: 700
         - asset: assets/fonts/Oswald-Medium.ttf
           weight: 500
+        - asset: assets/fonts/Oswald-Bold.ttf
+          weight: 700
+
+    # Monospace - Datos, IDs, código
+    - family: JetBrainsMono
+      fonts:
+        - asset: assets/fonts/JetBrainsMono-Regular.ttf
+
+    # Keposhka - Glifos del idioma ficticio
     - family: Keposhka
       fonts:
         - asset: assets/fonts/KeposhkaRegular.otf
 
   assets:
     - assets/models/keposhka_detector.tflite
-    - assets/images/keposhka_reference/
 ```
 
 ## Permisos Android
@@ -590,11 +1725,11 @@ flutter:
 - [ ] Ajustar tamaño de fuente según box
 - [ ] Optimizar rendimiento (isolate)
 
-### Fase 5: Modo Comparación
-- [ ] Implementar ComparisonScreen
+### Fase 5: Modo Verificación
+- [ ] Implementar VerificationScreen
 - [ ] Vista lado a lado sincronizada
-- [ ] Implementar ReferenceGrid
-- [ ] Preparar imágenes de referencia Keposhka
+- [ ] Implementar ReferenceGrid (usando fuente Keposhka)
+- [ ] Implementar keposhkaFontMap para dígrafos
 - [ ] Scroll/zoom sincronizado
 
 ### Fase 6: Pulido y Testing
@@ -651,7 +1786,17 @@ Usar permission_handler para solicitar permisos en runtime
 
 ## Referencias
 
+### Proyecto Keposhka
 - Modelo YOLO: `keposhka-detector-model/specs/keposhka_detector_model.md`
-- Estilo UI: `keposhka_labeling/frontend/src/index.css`
+- Mapeo de fuente Keposhka: `keposhka_labeling/frontend/src/components/ReferencePanel.tsx`
+
+### Diseño UI (archivos base para adaptar a Flutter)
+- Configuración de tema: `keposhka_labeling/frontend/tailwind.config.js`
+- Estilos CSS: `keposhka_labeling/frontend/src/index.css`
+- Fuentes: `keposhka_labeling/frontend/package.json`
+
+### Documentación externa
 - TFLite Flutter: https://pub.dev/packages/tflite_flutter
 - YOLO TFLite export: Ultralytics docs
+- Google Fonts (Bebas Neue, Oswald): https://fonts.google.com
+- JetBrains Mono: https://www.jetbrains.com/lp/mono/
