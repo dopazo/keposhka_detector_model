@@ -6,10 +6,12 @@ Especificación técnica para una aplicación móvil Android que traduce texto K
 
 Crear una aplicación móvil que permita:
 1. Tomar o cargar fotos con texto Keposhka
-2. Detectar y clasificar caracteres automáticamente (offline)
+2. Detectar y clasificar caracteres automáticamente (offline, 100% sin conexión)
 3. Mostrar la traducción superpuesta sobre cada carácter con blur de fondo
-4. Verificar traducción comparando imagen original vs. traducida lado a lado
-5. Mostrar referencia de caracteres para manejo de errores
+4. Agrupar caracteres cercanos en palabras para mejor legibilidad
+5. Verificar traducción comparando imagen original vs. traducida lado a lado
+6. Mostrar referencia de caracteres mediante carrusel inferior
+7. Permitir corrección manual de detecciones incorrectas
 
 ## Stack Tecnológico
 
@@ -1245,7 +1247,14 @@ flutter:
 - Logo Keposhka (opcional) ("Keposhka Translator" con fuente y letras en Keposhka)
 - Botón "TOMAR FOTO" (abre cámara)
 - Botón "SELECCIONAR IMAGEN" (abre galería)
-- Enlace "VER REFERENCIA" (muestra grid de caracteres)
+- Sección "RECIENTES" (lista horizontal de thumbnails de últimas 10-20 traducciones)
+- Toggle para mostrar/ocultar carrusel de referencia (franja inferior)
+
+**Historial temporal:**
+- Guarda las últimas 10-20 traducciones en caché local
+- Se muestra como lista horizontal de thumbnails debajo de los botones principales
+- Tap en thumbnail abre la traducción guardada
+- Se borran eventualmente (no persistencia permanente)
 
 **Estilo:**
 - Fondo: `keposhkaConcrete` (#1A1A1A)
@@ -1269,25 +1278,52 @@ flutter:
 **Elementos principales:**
 - Imagen con overlay de traducción
 - Botón "VERIFICAR" (floating, esquina inferior)
-- Indicador de caracteres detectados
-- Botón de guardar foto (guardar original, guardar traducción, pues no se guarda automáticamente en galería)
+- Indicador de caracteres detectados (solo conteo total: "42 caracteres detectados")
+- Botón de guardar foto (guardar original, guardar traducción a galería del sistema en formato PNG)
+- Carrusel de referencia inferior (toggle para mostrar/ocultar, ~80px de altura)
+
+**Color coding de confianza:**
+Las letras traducidas usan colores según la confianza del modelo:
+- Verde: confianza > 80%
+- Amarillo: confianza 50-80%
+- Rojo: confianza < 50% (pero >= threshold de 25%)
 
 **Overlay de traducción:**
 ```dart
 // Para cada detección:
 // 1. Aplicar blur gaussiano en el área del bounding box
-// 2. Superponer la letra traducida centrada en el box
+// 2. Superponer la letra traducida (grande) + glifo Keposhka original (pequeño debajo)
 // 3. El tamaño de fuente se escala según el tamaño del box
+// 4. Color según nivel de confianza (verde/amarillo/rojo)
+```
+
+**Formato de overlay por carácter:**
+- Letra latina traducida: fuente grande, centrada en el box, color según confianza
+- Glifo Keposhka detectado: fuente pequeña debajo de la latina, ayuda a confirmar la detección
+
+**Algoritmo de agrupación de palabras:**
+```
+1. Ordenar detecciones por posición X
+2. Para cada par de detecciones adyacentes:
+   - Calcular distancia horizontal entre bounding boxes
+   - Si distancia < 50% del ancho promedio de ambos caracteres:
+     - Agrupar en la misma palabra
+3. Para cada grupo/palabra:
+   - Calcular bounding box unificado que englobe todos los caracteres
+   - Aplicar blur gaussiano a toda la región
+   - Renderizar palabra completa centrada sobre el blur
+   - Los dígrafos (CH, GH, etc.) ocupan espacio proporcional a su bounding box original
 ```
 
 **Algoritmo de overlay:**
 ```
-Para cada detección (box, class_id, confidence):
-  1. Extraer región del bounding box
-  2. Aplicar GaussianBlur (sigma: 10-15)
+Para cada detección/palabra (box, class_id, confidence):
+  1. Extraer región del bounding box (individual o agrupado)
+  2. Aplicar GaussianBlur (sigma fijo: 12px)
   3. Dibujar rectángulo semi-transparente (opcional, para legibilidad)
   4. Calcular tamaño de fuente proporcional al alto del box
-  5. Renderizar letra traducida (class_labels[class_id]) centrada
+  5. Renderizar letra traducida centrada con color según confianza
+  6. Renderizar glifo Keposhka original debajo en tamaño pequeño
 ```
 
 **Mapeo de clases a letras:**
@@ -1368,78 +1404,135 @@ Text(
 │    procesar)      │     overlay)       │
 │                   │                    │
 ├───────────────────┴────────────────────┤
-│         REFERENCIA DE CARACTERES       │ ← Sección inferior
-│  ┌───┐ ┌───┐ ┌───┐ ┌───┐ ┌───┐ ...   │
-│  │ A │ │ B │ │ C │ │ D │ │ E │        │
-│  │ 𐌀 │ │ 𐌁 │ │ 𐌂 │ │ 𐌃 │ │ 𐌄 │        │ ← Keposhka glyph
-│  └───┘ └───┘ └───┘ └───┘ └───┘        │
+│  REFERENCIA (carrusel ~80px)           │ ← Carrusel inferior
+│  [A|𐌀] [B|𐌁] [C|𐌂] [D|𐌃] [E|𐌄] ...  │   scroll horizontal
 └────────────────────────────────────────┘
 ```
 
 **Elementos:**
-- Dos imágenes lado a lado (scroll sincronizado, zoom sincronizado)
-- Slider para ajustar división (opcional, modo overlay)
-- Grid de referencia colapsable con las 70 clases
-- Cada celda: letra latina arriba, glifo Keposhka abajo
+- Dos imágenes lado a lado (scroll sincronizado, zoom sincronizado máximo 4x)
+- Carrusel de referencia inferior (~80px, compacto, scroll horizontal)
+- El carrusel sirve para seleccionar cuando se está editando un carácter
 
 **Interacciones:**
-- Pinch to zoom (sincronizado en ambas imágenes)
+- Pinch to zoom (sincronizado en ambas imágenes, máximo 4x para ocultar artefactos del blur)
 - Pan (sincronizado)
-- Tap en celda de referencia: resalta esa letra en la imagen traducida
 
-### 5. Panel de Referencia (ReferenceGrid)
+### 5. Carrusel de Referencia (ReferenceCarousel)
 
-**Propósito:** Ayudar al usuario a verificar/corregir errores de detección
+**Propósito:**
+1. Referencia visual rápida de todos los caracteres
+2. Selector para edición manual de detecciones incorrectas
 
 **Layout:**
-- Grid de 6 columnas
-- 70 celdas (una por clase)
-- Cada celda muestra:
-  - Letra latina (arriba, fuente Oswald)
-  - Glifo Keposhka (abajo, usando fuente Keposhka con `getKeposhkaChar()`)
-  - ID de clase (pequeño, abajo)
+- Carrusel horizontal ~80px de altura
+- Toggle button para mostrar/ocultar (no superpone, constriñe el espacio disponible)
+- Cada celda muestra: letra latina arriba + glifo Keposhka abajo
+- Scroll horizontal por todas las 70 clases
 
-**Organización por grupos (similar a ReferencePanel de keposhka_labeling):**
+**Organización en carrusel:**
 ```
-MAYÚSCULAS:  A-Z (26 celdas)
-MINÚSCULAS:  a-z (26 celdas)
-DÍGRAFOS:    CH, ch, GH, gh, SH, sh, TH, th (8 celdas, grid 2 columnas)
-NÚMEROS:     0-9 (10 celdas, grid 5 columnas)
+[0-9] [A-Z] [a-z] [CH|ch|GH|gh|SH|sh|TH|th]
 ```
+
+**Interactividad:**
+- En modo normal: solo scroll visual de referencia
+- En modo edición (cuando hay un carácter seleccionado): tap para asignar esa clase al carácter seleccionado
+
+### 6. Flujo de Edición Manual
+
+**Propósito:** Permitir al usuario corregir detecciones incorrectas
+
+**Flujo:**
+1. Usuario toca un carácter detectado en la imagen
+2. El carácter se resalta con borde/highlight de color
+3. El carrusel de referencia se activa para selección
+4. Usuario toca un carácter en el carrusel
+5. Se muestra preview del cambio
+6. Usuario confirma o cancela el cambio
+
+**Indicador visual de selección:**
+- Borde de color brillante alrededor del carácter seleccionado
+- El resto de la imagen mantiene su estado normal
+
+**Confirmación:**
+- Al seleccionar del carrusel, se muestra preview del cambio
+- Requiere segundo tap para confirmar
+- Botón de cancelar para descartar
 
 **Implementación:**
 ```dart
-// reference_grid.dart
-class ReferenceGrid extends StatelessWidget {
+// reference_carousel.dart
+class ReferenceCarousel extends StatelessWidget {
+  final String? selectedLabel;  // Carácter actualmente en edición
+  final ValueChanged<String>? onSelect;  // Callback al seleccionar para edición
+  final bool isEditMode;  // Si hay un carácter seleccionado para editar
+
+  // Orden de caracteres en el carrusel
+  static const _allLabels = [
+    // Números
+    '0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
+    // Mayúsculas
+    'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M',
+    'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z',
+    // Minúsculas
+    'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm',
+    'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z',
+    // Dígrafos
+    'CH', 'ch', 'GH', 'gh', 'SH', 'sh', 'TH', 'th',
+  ];
+
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        _buildSection('MAYÚSCULAS', 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('')),
-        _buildSection('MINÚSCULAS', 'abcdefghijklmnopqrstuvwxyz'.split('')),
-        _buildDigraphSection(),
-        _buildSection('NÚMEROS', '0123456789'.split(''), columns: 5),
-      ],
+    return SizedBox(
+      height: 80,
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        itemCount: _allLabels.length,
+        itemBuilder: (context, index) {
+          final label = _allLabels[index];
+          return _buildCharCell(label);
+        },
+      ),
     );
   }
 
   Widget _buildCharCell(String label) {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.keposhkaSteel.withOpacity(0.3),
-        border: Border.all(color: AppColors.keposhkaSteel),
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          // Etiqueta latina
-          Text(label, style: TextStyle(fontFamily: 'Oswald', fontSize: 12)),
-          // Glifo Keposhka
-          Text(
-            getKeposhkaChar(label),
-            style: TextStyle(fontFamily: 'Keposhka', fontSize: 24),
+    final isSelected = label == selectedLabel;
+    return GestureDetector(
+      onTap: isEditMode ? () => onSelect?.call(label) : null,
+      child: Container(
+        width: 50,
+        margin: const EdgeInsets.symmetric(horizontal: 2),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? AppColors.keposhkaRed
+              : AppColors.keposhkaSteel.withOpacity(0.3),
+          border: Border.all(
+            color: isEditMode ? AppColors.keposhkaRed : AppColors.keposhkaSteel,
+            width: isEditMode ? 2 : 1,
           ),
-        ],
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            // Etiqueta latina
+            Text(label, style: TextStyle(
+              fontFamily: 'Oswald',
+              fontSize: 12,
+              color: isSelected ? AppColors.keposhkaWhite : AppColors.keposhkaCream,
+            )),
+            // Glifo Keposhka
+            Text(
+              getKeposhkaChar(label),
+              style: TextStyle(
+                fontFamily: 'Keposhka',
+                fontSize: 24,
+                color: isSelected ? AppColors.keposhkaWhite : AppColors.keposhkaCream,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1606,8 +1699,11 @@ dependencies:
   # UI
   flutter_svg: ^2.0.10+1  # Para iconos SVG
 
-  # Almacenamiento
+  # Almacenamiento (solo para caché de historial temporal)
   shared_preferences: ^2.2.2
+
+  # Guardado a galería
+  gal: ^2.3.0
 
   # Utilidades
   path_provider: ^2.1.2
@@ -1694,6 +1790,20 @@ flutter:
 3. **Cache de resultados**: Guardar detecciones mientras no cambie la imagen
 4. **Imagen reducida para preview**: Usar thumbnail para UI, full-res para export
 
+### Prioridades de rendimiento
+
+- **Calidad sobre velocidad**: En dispositivos de gama baja, mantener calidad del blur aunque tarde más
+- **Blur sigma fijo**: 12px para todos los caracteres, sin ajuste dinámico
+- **Zoom máximo 4x**: Limitar zoom para ocultar artefactos del blur
+
+## Conectividad
+
+La aplicación funciona **100% offline**:
+- Todas las fuentes embebidas en el APK
+- Modelo TFLite incluido en assets
+- Sin analytics ni funcionalidad que requiera red
+- Sin actualizaciones remotas del modelo
+
 ## Fases de Desarrollo
 
 ### Fase 1: Setup y UI Base
@@ -1701,8 +1811,9 @@ flutter:
 - [ ] Configurar tema brutalista (colores, tipografía)
 - [ ] Implementar componentes base (BrutalButton, RegimePanel, etc.)
 - [ ] Crear navegación con GoRouter
-- [ ] Implementar HomeScreen
-- [ ] Agregar fuentes (Oswald, Keposhka)
+- [ ] Implementar HomeScreen con sección de recientes
+- [ ] Agregar fuentes (Oswald, Bebas Neue, JetBrains Mono, Keposhka)
+- [ ] Implementar carrusel de referencia (ReferenceCarousel)
 
 ### Fase 2: Captura de Imagen
 - [ ] Integrar plugin de cámara
@@ -1719,27 +1830,41 @@ flutter:
 - [ ] Probar inferencia básica
 
 ### Fase 4: Overlay de Traducción
-- [ ] Implementar ImageService para blur
-- [ ] Renderizar letras sobre blur
+- [ ] Implementar ImageService para blur (sigma fijo 12px)
+- [ ] Implementar algoritmo de agrupación de palabras
+- [ ] Renderizar letras con color coding (verde/amarillo/rojo)
+- [ ] Mostrar glifo Keposhka pequeño debajo de cada traducción
 - [ ] Crear TranslationScreen con imagen procesada
 - [ ] Ajustar tamaño de fuente según box
-- [ ] Optimizar rendimiento (isolate)
+- [ ] Optimizar rendimiento (isolate, priorizar calidad)
 
-### Fase 5: Modo Verificación
+### Fase 5: Edición Manual
+- [ ] Implementar selección de carácter (tap con highlight)
+- [ ] Activar carrusel para selección de clase
+- [ ] Implementar preview + confirmación de cambio
+- [ ] Integrar flujo de edición con TranslationScreen
+
+### Fase 6: Modo Verificación
 - [ ] Implementar VerificationScreen
-- [ ] Vista lado a lado sincronizada
-- [ ] Implementar ReferenceGrid (usando fuente Keposhka)
-- [ ] Implementar keposhkaFontMap para dígrafos
+- [ ] Vista lado a lado sincronizada (zoom max 4x)
+- [ ] Integrar carrusel de referencia
 - [ ] Scroll/zoom sincronizado
 
-### Fase 6: Pulido y Testing
-- [ ] Pruebas en múltiples dispositivos
-- [ ] Optimizar tiempos de carga
-- [ ] Manejar edge cases (sin detecciones, errores)
-- [ ] Agregar animaciones y transiciones
-- [ ] Testing de UI y UX
+### Fase 7: Historial y Guardado
+- [ ] Implementar caché de traducciones recientes (10-20)
+- [ ] Mostrar thumbnails en HomeScreen
+- [ ] Implementar guardado a galería (PNG)
+- [ ] Manejo de errores y fallback a modo manual
 
-### Fase 7: Release
+### Fase 8: Pulido y Testing
+- [ ] Pruebas en múltiples dispositivos
+- [ ] Verificar tamaño APK < 50MB
+- [ ] Manejar edge cases (sin detecciones, errores TFLite)
+- [ ] Agregar animaciones y transiciones brutalistas
+- [ ] Testing de UI y UX
+- [ ] Accesibilidad mínima (labels para screen readers)
+
+### Fase 9: Release
 - [ ] Configurar firma de APK
 - [ ] Generar APK release
 - [ ] Probar en dispositivo físico
@@ -1753,8 +1878,37 @@ flutter:
 | Tiempo de carga inicial | < 2s |
 | Tiempo de inferencia | < 500ms (GPU), < 1.5s (CPU) |
 | Tiempo total foto→traducción | < 3s |
-| Tamaño APK | < 50MB |
+| Tamaño APK | < 50MB (límite estricto) |
 | RAM en uso | < 200MB |
+
+## Accesibilidad
+
+Implementación mínima viable:
+- Labels accesibles para screen readers en todos los elementos interactivos
+- Respetar tamaño de fuente del sistema cuando sea posible
+- Sin tema claro alternativo ni adaptaciones de alto contraste
+
+## Audio y Haptics
+
+- Sin efectos de sonido
+- Solo vibración háptica opcional (feedback del sistema)
+
+## Manejo de Errores y Edge Cases
+
+### Sin detecciones
+Cuando el modelo no detecta ningún carácter:
+- Mostrar mensaje simple: "No se detectaron caracteres Keposhka"
+- Botón para reintentar con la misma imagen
+
+### Error de modelo TFLite
+Cuando falla la carga o inferencia del modelo:
+- Fallback a modo manual: "No se pudo detectar automáticamente. Usa la referencia para traducir manualmente."
+- El usuario puede usar el carrusel de referencia para interpretar la imagen visualmente
+
+### Texto rotado/vertical
+- La app asume texto horizontal
+- Texto rotado se detectará carácter por carácter pero sin orden de lectura correcto
+- El usuario puede usar la referencia para interpretar manualmente
 
 ## Troubleshooting
 
@@ -1780,7 +1934,148 @@ Usar permission_handler para solicitar permisos en runtime
 2. Reducir tamaño de entrada si es aceptable
 3. Mover inferencia a isolate
 4. Considerar modelo más pequeño (yolo11n)
+Nota: Priorizar calidad sobre velocidad en todos los casos.
 ```
+
+---
+
+## Sistema de Confianza Visual
+
+### Color Coding por Confianza
+
+Cada carácter detectado se muestra con un color según su nivel de confianza:
+
+| Rango | Color | Hex | Descripción |
+|-------|-------|-----|-------------|
+| > 80% | Verde | `#4A7C23` (successLight) | Alta confianza, detección segura |
+| 50-80% | Amarillo | `#8B6914` (warning) | Confianza media, verificar |
+| < 50% | Rojo | `#89181A` (keposhkaRed) | Baja confianza, probablemente incorrecto |
+
+**Nota:** Solo se muestran detecciones con confianza >= 25% (threshold del modelo).
+
+### Implementación del Color Coding
+
+```dart
+Color getConfidenceColor(double confidence) {
+  if (confidence > 0.80) return AppColors.successLight;
+  if (confidence > 0.50) return AppColors.warning;
+  return AppColors.keposhkaRed;
+}
+```
+
+---
+
+## Flujo de Edición Detallado
+
+### Estado de Edición
+
+```dart
+class EditState {
+  final int? selectedDetectionIndex;  // null = no hay selección
+  final String? previewLabel;         // Label en preview (antes de confirmar)
+  final bool isConfirmationPending;   // Esperando confirmación
+}
+```
+
+### Flujo Paso a Paso
+
+1. **Estado inicial**: Usuario ve la imagen con traducciones
+2. **Tap en carácter**:
+   - `selectedDetectionIndex` = índice del carácter tocado
+   - Se muestra highlight de color en ese carácter
+   - El carrusel inferior entra en modo selección
+3. **Tap en carrusel**:
+   - `previewLabel` = label seleccionado del carrusel
+   - Se muestra preview del cambio sobre la imagen
+   - Aparecen botones "Confirmar" y "Cancelar"
+4. **Confirmar**:
+   - Se actualiza la detección con el nuevo label
+   - Se regenera el overlay de la imagen
+   - Se limpia el estado de edición
+5. **Cancelar**:
+   - Se descarta el `previewLabel`
+   - El carácter sigue seleccionado para elegir otra opción
+
+### Widget de Edición
+
+```dart
+class EditableOverlay extends StatelessWidget {
+  final List<Detection> detections;
+  final int? selectedIndex;
+  final String? previewLabel;
+  final ValueChanged<int> onSelect;
+  final ValueChanged<String> onPreview;
+  final VoidCallback onConfirm;
+  final VoidCallback onCancel;
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      children: [
+        // Imagen con overlay
+        TranslationOverlay(
+          detections: detections,
+          highlightIndex: selectedIndex,
+          previewLabel: previewLabel,
+        ),
+        // Carrusel inferior (si hay selección)
+        if (selectedIndex != null)
+          Positioned(
+            bottom: 0,
+            left: 0,
+            right: 0,
+            child: ReferenceCarousel(
+              isEditMode: true,
+              selectedLabel: previewLabel ?? detections[selectedIndex!].label,
+              onSelect: onPreview,
+            ),
+          ),
+        // Botones de confirmación (si hay preview)
+        if (previewLabel != null)
+          Positioned(
+            bottom: 90,
+            right: 16,
+            child: Row(
+              children: [
+                BrutalButton(text: 'CANCELAR', onPressed: onCancel, isPrimary: false),
+                SizedBox(width: 8),
+                BrutalButton(text: 'CONFIRMAR', onPressed: onConfirm),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+}
+```
+
+---
+
+## Almacenamiento del Historial
+
+### Estructura de Caché
+
+```dart
+class TranslationCache {
+  final String imagePath;           // Path temporal de la imagen
+  final String translatedImagePath; // Path de la imagen con overlay
+  final List<Detection> detections; // Detecciones (para re-editar)
+  final DateTime timestamp;         // Para ordenar y limpiar
+}
+```
+
+### Política de Limpieza
+
+- Máximo 20 traducciones en caché
+- Al agregar la #21, se elimina la más antigua
+- Se guardan en directorio temporal de la app
+- Se borran al desinstalar la app
+
+### Persistencia
+
+- Usar SharedPreferences para guardar lista de paths
+- Las imágenes se guardan como archivos en el directorio de caché de la app
+- No se persisten las detecciones (se re-procesan si el usuario reabre)
 
 ---
 
