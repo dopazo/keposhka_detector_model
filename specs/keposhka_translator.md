@@ -1432,8 +1432,9 @@ Text(
 
 **Organización en carrusel:**
 ```
-[0-9] [A-Z] [a-z] [CH|ch|GH|gh|SH|sh|TH|th]
+[A-Z + dígrafos mayúsculas] [a-z + dígrafos minúsculas] [0-9]
 ```
+Los dígrafos se insertan en su posición alfabética: CH después de C, GH después de G, SH después de S, TH después de T.
 
 **Interactividad:**
 - En modo normal: solo scroll visual de referencia
@@ -1468,18 +1469,17 @@ class ReferenceCarousel extends StatelessWidget {
   final ValueChanged<String>? onSelect;  // Callback al seleccionar para edición
   final bool isEditMode;  // Si hay un carácter seleccionado para editar
 
-  // Orden de caracteres en el carrusel
+  // Orden de caracteres en el carrusel (3 secciones: mayúsculas, minúsculas, números)
+  // Los dígrafos están integrados en su posición alfabética
   static const _allLabels = [
+    // Mayúsculas (con dígrafos en posición alfabética)
+    'A', 'B', 'C', 'CH', 'D', 'E', 'F', 'G', 'GH', 'H', 'I', 'J', 'K', 'L', 'M',
+    'N', 'O', 'P', 'Q', 'R', 'S', 'SH', 'T', 'TH', 'U', 'V', 'W', 'X', 'Y', 'Z',
+    // Minúsculas (con dígrafos en posición alfabética)
+    'a', 'b', 'c', 'ch', 'd', 'e', 'f', 'g', 'gh', 'h', 'i', 'j', 'k', 'l', 'm',
+    'n', 'o', 'p', 'q', 'r', 's', 'sh', 't', 'th', 'u', 'v', 'w', 'x', 'y', 'z',
     // Números
     '0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
-    // Mayúsculas
-    'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M',
-    'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z',
-    // Minúsculas
-    'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm',
-    'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z',
-    // Dígrafos
-    'CH', 'ch', 'GH', 'gh', 'SH', 'sh', 'TH', 'th',
   ];
 
   @override
