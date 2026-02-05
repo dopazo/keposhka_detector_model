@@ -16,7 +16,7 @@ import yaml
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--split", type=float, default=0.8, help="Train split ratio (default: 0.8)")
+    parser.add_argument("--split", type=float, default=0.9, help="Train split ratio (default: 0.9)")
     parser.add_argument("--seed", type=int, default=42, help="Random seed")
     args = parser.parse_args()
 
