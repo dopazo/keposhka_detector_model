@@ -24,12 +24,14 @@ uv sync
 uv pip install torch torchvision --index-url https://download.pytorch.org/whl/cu118
 
 # Run scripts
-uv run python scripts/analyze_dataset.py
-uv run python scripts/prepare_folds.py
-uv run python scripts/train.py [--fold 0] [--config custom.yaml]
-uv run python scripts/evaluate.py [--fold 0]
-uv run python scripts/predict.py image.jpg [--model path] [--conf 0.5] [--save]
-uv run python scripts/export.py [--fold 0]
+uv run python scripts/analyze_dataset.py                                        # Analizar distribución de clases
+uv run python scripts/prepare_folds.py                                          # Crear k-fold splits (k=3)
+uv run python scripts/prepare_simple_split.py [--split 0.8] [--seed 42]         # Crear split simple 80/20 sin folds
+uv run python scripts/train.py [--fold 0] [--config custom.yaml]                # Entrenar con k-fold
+uv run python scripts/train.py --data data_split/data.yaml --name exp_name      # Entrenar con split simple
+uv run python scripts/evaluate.py [--fold 0]                                    # Evaluar modelo entrenado
+uv run python scripts/predict.py image.jpg [--model path] [--conf 0.5] [--save] # Inferencia sobre imagen
+uv run python scripts/export.py [--fold 0]                                      # Exportar a TFLite
 
 # View MLflow experiments (DISABLED - see Known Issues)
 # mlflow ui  # Opens http://localhost:5000
@@ -47,9 +49,10 @@ uv run python -c "import torch; print(torch.cuda.is_available())"
 4. Per-fold `data.yaml` files configure YOLO training paths
 
 ### Training Pipeline
-- Uses k=3 fold cross-validation (optimized for small datasets <50 images)
+- Two modes: k=3 fold cross-validation (`--fold`) or simple split (`--data`)
+- `prepare_simple_split.py` creates 80/20 split in `data_split/` (no folds)
 - Config in `configs/train_config.yaml` controls hyperparameters
-- Model weights saved to `runs/detect/runs/fold_{N}/weights/best.pt`
+- Model weights saved to `runs/detect/runs/{name}/weights/best.pt`
 
 ### Key Augmentation Settings (text-specific)
 - Rotation ±20° (for arc/curved text)
@@ -65,15 +68,17 @@ uv run python -c "import torch; print(torch.cuda.is_available())"
 ```
 scripts/           # Main Python scripts
   analyze_dataset.py  # Analyze class distribution
-  prepare_folds.py    # Create k-fold splits
-  train.py            # Train model(s)
+  prepare_folds.py        # Create k-fold splits
+  prepare_simple_split.py # Create simple 80/20 split (no folds)
+  train.py                # Train model(s) (supports --fold or --data)
   evaluate.py         # Evaluate trained models
   predict.py          # Run inference
   export.py           # Export to TFLite
 configs/           # YAML config files
 data/              # Source images and labels
+data_split/        # Simple train/val split (generated)
 folds/             # Generated k-fold splits
-runs/              # YOLO training outputs (runs/detect/runs/fold_N/)
+runs/              # YOLO training outputs (runs/detect/runs/{name}/)
 specs/             # Technical specification
 ```
 
