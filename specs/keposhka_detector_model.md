@@ -1146,20 +1146,21 @@ Estas métricas mejorarán significativamente conforme crezca el dataset.
 - [x] Ejecutar `prepare_folds.py` para generar k=3 folds
 - [x] Entrenar fold 0 como prueba inicial
 - [x] Verificar que el entrenamiento completa sin errores
-- [ ] Revisar curvas de pérdida en MLflow/TensorBoard
+- [x] Revisar curvas de pérdida (results.png en runs/)
+- [x] Entrenar con split simple 80/20 (optimized_v1, yolo11s, 300 epochs)
 - [ ] Entrenar folds restantes (1 y 2)
 
 ### Fase 3: Evaluación & Análisis
-- [ ] Ejecutar `evaluate.py` para métricas agregadas
+- [x] Ejecutar `evaluate.py` para métricas agregadas (optimized_v1: mAP50=0.273)
 - [ ] Analizar varianza entre folds (¿muy alta = datos insuficientes?)
-- [ ] Identificar clases con peor rendimiento (confusion matrix)
-- [ ] Ejecutar `predict.py` en imágenes de prueba para inspección visual
-- [ ] Documentar errores comunes (falsos positivos/negativos típicos)
+- [x] Identificar clases con peor rendimiento (45/70 detectadas, 25 sin detección)
+- [x] Ejecutar `predict.py` en imágenes de prueba para inspección visual
+- [x] Documentar errores comunes: confusión entre dígrafos (TH/CH/GH/SH), 25 clases no detectadas, falsos negativos masivos, formas similares confundidas (L/Q→X/z)
 
 ### Fase 4: Iteración & Optimización
 - [ ] Ejecutar `tune.py` para búsqueda automática de hiperparámetros
 - [ ] Actualizar `train_config.yaml` con mejores hiperparámetros encontrados
-- [ ] Considerar modelo más grande (`yolo11s`) si nano es insuficiente
+- [x] Considerar modelo más grande (`yolo11s`) - ya en uso desde optimized_v1
 - [ ] Agregar más datos de entrenamiento si hay clases problemáticas
 - [ ] Re-entrenar con configuración optimizada
 - [ ] Comparar métricas con baseline inicial
