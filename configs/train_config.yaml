@@ -1,11 +1,15 @@
 # Modelo base
-model: yolo11n.pt  # Opciones: yolo11n/s/m/l/x
+model: yolo11s.pt     # Small: más capacidad para 70 clases (yolo11n es insuficiente)
 
 # Entrenamiento
-epochs: 100
-patience: 20          # Early stopping
-batch: 8              # Reducido para imgsz=1280 con 8GB VRAM
-imgsz: 1280           # Tamaño de imagen (aumentado para caracteres pequeños)
+epochs: 300           # Más épocas para dataset pequeño (39 imgs) con augmentación fuerte
+patience: 50          # No cortar prematuramente con tanta augmentación
+batch: 4              # Reducido: más gradient steps por época (~8 steps vs ~4 con batch=8)
+imgsz: 1280           # Tamaño de imagen (mantener para caracteres pequeños)
+cos_lr: true          # Cosine LR scheduler: decaimiento más suave
+
+# Transfer learning
+freeze: 10            # Congelar backbone (capas 0-9): evita overfitting con pocos datos
 
 # Optimizador
 optimizer: AdamW
@@ -19,14 +23,17 @@ hsv_h: 0.015          # Hue
 hsv_s: 0.7            # Saturation
 hsv_v: 0.4            # Value
 degrees: 20.0         # Rotación ±20° (para texto en arcos)
-translate: 0.1
-scale: 0.5
+translate: 0.15       # Ligeramente más traslación para variedad
+scale: 0.3            # Reducido de 0.5: evitar encoger demasiado caracteres pequeños
 shear: 2.0
 perspective: 0.0005   # Distorsión de perspectiva
 flipud: 0.0           # Sin flip vertical (texto)
 fliplr: 0.0           # Sin flip horizontal (texto direccional)
-mosaic: 0.2           # Reducido para preservar caracteres pequeños
-mixup: 0.1
+mosaic: 1.0           # MÁXIMO: augmentación más importante para datasets pequeños
+close_mosaic: 30      # Desactivar mosaic últimas 30 épocas para fine-tune limpio
+copy_paste: 0.3       # Copiar objetos entre imágenes: compensa desbalance de clases
+mixup: 0.0            # DESACTIVADO: superponer imágenes confunde detección de caracteres
+erasing: 0.2          # Random erasing: mejora robustez a oclusiones parciales
 
 # Otros
 workers: 8

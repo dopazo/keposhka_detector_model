@@ -26,7 +26,7 @@ uv pip install torch torchvision --index-url https://download.pytorch.org/whl/cu
 # Run scripts
 uv run python scripts/analyze_dataset.py                                        # Analizar distribución de clases
 uv run python scripts/prepare_folds.py                                          # Crear k-fold splits (k=3)
-uv run python scripts/prepare_simple_split.py [--split 0.8] [--seed 42]         # Crear split simple 80/20 sin folds
+uv run python scripts/prepare_simple_split.py [--split 0.9] [--seed 42]         # Crear split simple 90/10 sin folds
 uv run python scripts/train.py [--fold 0] [--config custom.yaml]                # Entrenar con k-fold
 uv run python scripts/train.py --data data_split/data.yaml --name exp_name      # Entrenar con split simple
 uv run python scripts/evaluate.py [--fold 0]                                    # Evaluar modelo entrenado
@@ -50,15 +50,20 @@ uv run python -c "import torch; print(torch.cuda.is_available())"
 
 ### Training Pipeline
 - Two modes: k=3 fold cross-validation (`--fold`) or simple split (`--data`)
-- `prepare_simple_split.py` creates 80/20 split in `data_split/` (no folds)
+- `prepare_simple_split.py` creates 90/10 split in `data_split/` (no folds)
 - Config in `configs/train_config.yaml` controls hyperparameters
 - Model weights saved to `runs/detect/runs/{name}/weights/best.pt`
 
-### Key Augmentation Settings (text-specific)
+### Key Augmentation Settings (small dataset, text-specific)
+- **Mosaic 1.0** (max): most impactful augmentation for 39-image dataset
+- **Copy-paste 0.3**: compensates class imbalance by copying objects between images
+- **Freeze backbone (10 layers)**: transfer learning to prevent overfitting
+- **No mixup**: overlapping blended characters confuse text detection
 - Rotation ±20° (for arc/curved text)
 - Perspective distortion 0.0005
 - **No horizontal/vertical flips** (text is directional)
-- Reduced mosaic (0.2) to preserve small characters
+- Close mosaic at 30 epochs before end for clean fine-tuning
+- Random erasing 0.2 for occlusion robustness
 
 ### Class Mapping
 70 classes total: digits 0-9, uppercase A-Z, lowercase a-z, plus digraphs (CH/ch, GH/gh, SH/sh, TH/th). Full mapping in `specs/keposhka_detector_model.md`.
@@ -69,7 +74,7 @@ uv run python -c "import torch; print(torch.cuda.is_available())"
 scripts/           # Main Python scripts
   analyze_dataset.py  # Analyze class distribution
   prepare_folds.py        # Create k-fold splits
-  prepare_simple_split.py # Create simple 80/20 split (no folds)
+  prepare_simple_split.py # Create simple 90/10 split (no folds)
   train.py                # Train model(s) (supports --fold or --data)
   evaluate.py         # Evaluate trained models
   predict.py          # Run inference
