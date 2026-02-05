@@ -12,7 +12,7 @@ YOLO v11 object detection model for detecting and classifying 70 characters from
 - **Backend**: PyTorch (requires CUDA for GPU)
 - **Python**: 3.13+
 - **Package Manager**: uv
-- **Experiment Tracking**: MLflow (local)
+- **Experiment Tracking**: MLflow (DISABLED - see Known Issues)
 
 ## Common Commands
 
@@ -31,8 +31,8 @@ uv run python scripts/evaluate.py [--fold 0]
 uv run python scripts/predict.py image.jpg [--model path] [--conf 0.5] [--save]
 uv run python scripts/export.py [--fold 0]
 
-# View MLflow experiments
-mlflow ui  # Opens http://localhost:5000
+# View MLflow experiments (DISABLED - see Known Issues)
+# mlflow ui  # Opens http://localhost:5000
 
 # Verify CUDA is working
 uv run python -c "import torch; print(torch.cuda.is_available())"
@@ -49,8 +49,7 @@ uv run python -c "import torch; print(torch.cuda.is_available())"
 ### Training Pipeline
 - Uses k=3 fold cross-validation (optimized for small datasets <50 images)
 - Config in `configs/train_config.yaml` controls hyperparameters
-- MLflow tracks experiments under `keposhka_detector`
-- Model weights saved to `runs/fold_{N}/weights/best.pt`
+- Model weights saved to `runs/detect/runs/fold_{N}/weights/best.pt`
 
 ### Key Augmentation Settings (text-specific)
 - Rotation ±20° (for arc/curved text)
@@ -74,8 +73,7 @@ scripts/           # Main Python scripts
 configs/           # YAML config files
 data/              # Source images and labels
 folds/             # Generated k-fold splits
-runs/              # YOLO training outputs
-mlruns/            # MLflow experiment data
+runs/              # YOLO training outputs (runs/detect/runs/fold_N/)
 specs/             # Technical specification
 ```
 
@@ -84,3 +82,12 @@ specs/             # Technical specification
 - NVIDIA GPU with 4GB+ VRAM (8GB+ recommended)
 - CUDA 11.8 or 12.1 installed separately
 - Must reinstall PyTorch with CUDA after `uv sync` (see commands above)
+
+## Known Issues
+
+### MLflow disabled on Windows
+MLflow was removed (`uv remove mlflow`) because Ultralytics' MLflow callback fails on Windows. The error occurs because Windows paths with drive letters (e.g., `C:\...`) are incorrectly parsed as URI schemes by MLflow.
+
+**Error**: `UnsupportedModelRegistryStoreURIException: got unsupported URI 'C:\...'`
+
+**Workaround**: MLflow was uninstalled. Training metrics are logged to console and saved in `runs/` directory by Ultralytics. To re-enable MLflow later, would need to configure `MLFLOW_TRACKING_URI` with proper `file:///` prefix or run MLflow server.
