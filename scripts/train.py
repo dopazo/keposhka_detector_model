@@ -7,13 +7,21 @@ Uso:
     uv run python scripts/train.py --config custom.yaml
 """
 
+# Disable MLflow BEFORE importing ultralytics (must be first)
+import os
+os.environ["MLFLOW_TRACKING_URI"] = ""
+
 import argparse
 import logging
 from pathlib import Path
 
-import mlflow
 import yaml
 from ultralytics import YOLO
+from ultralytics.utils import callbacks
+
+# Remove MLflow callbacks from Ultralytics
+if "mlflow" in callbacks.default_callbacks:
+    del callbacks.default_callbacks["mlflow"]
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 logger = logging.getLogger(__name__)
@@ -35,64 +43,47 @@ def train_fold(fold_idx: int, config: dict):
         logger.error(f"No existe {data_yaml}. Ejecuta prepare_folds.py primero.")
         return None
 
-    # Configurar MLflow
-    mlflow.set_experiment("keposhka_detector")
+    # Cargar modelo base
+    model = YOLO(config["model"])
 
-    with mlflow.start_run(run_name=f"fold_{fold_idx}"):
-        # Log de parámetros
-        mlflow.log_params({
-            "fold": fold_idx,
-            "model": config["model"],
-            "epochs": config["epochs"],
-            "batch": config["batch"],
-            "imgsz": config["imgsz"],
-            "lr0": config["lr0"],
-        })
+    # Entrenar
+    results = model.train(
+        data=str(data_yaml),
+        epochs=config["epochs"],
+        patience=config["patience"],
+        batch=config["batch"],
+        imgsz=config["imgsz"],
+        optimizer=config["optimizer"],
+        lr0=config["lr0"],
+        lrf=config["lrf"],
+        momentum=config["momentum"],
+        weight_decay=config["weight_decay"],
+        hsv_h=config["hsv_h"],
+        hsv_s=config["hsv_s"],
+        hsv_v=config["hsv_v"],
+        degrees=config["degrees"],
+        translate=config["translate"],
+        scale=config["scale"],
+        shear=config["shear"],
+        perspective=config.get("perspective", 0.0),
+        flipud=config["flipud"],
+        fliplr=config["fliplr"],
+        mosaic=config["mosaic"],
+        mixup=config["mixup"],
+        workers=config["workers"],
+        device=config["device"],
+        project=config["project"],
+        name=f"fold_{fold_idx}",
+        exist_ok=config["exist_ok"],
+        verbose=config["verbose"],
+    )
 
-        # Cargar modelo base
-        model = YOLO(config["model"])
-
-        # Entrenar
-        results = model.train(
-            data=str(data_yaml),
-            epochs=config["epochs"],
-            patience=config["patience"],
-            batch=config["batch"],
-            imgsz=config["imgsz"],
-            optimizer=config["optimizer"],
-            lr0=config["lr0"],
-            lrf=config["lrf"],
-            momentum=config["momentum"],
-            weight_decay=config["weight_decay"],
-            hsv_h=config["hsv_h"],
-            hsv_s=config["hsv_s"],
-            hsv_v=config["hsv_v"],
-            degrees=config["degrees"],
-            translate=config["translate"],
-            scale=config["scale"],
-            shear=config["shear"],
-            perspective=config.get("perspective", 0.0),
-            flipud=config["flipud"],
-            fliplr=config["fliplr"],
-            mosaic=config["mosaic"],
-            mixup=config["mixup"],
-            workers=config["workers"],
-            device=config["device"],
-            project=config["project"],
-            name=f"fold_{fold_idx}",
-            exist_ok=config["exist_ok"],
-            verbose=config["verbose"],
-        )
-
-        # Log de métricas finales
-        if results:
-            mlflow.log_metrics({
-                "mAP50": results.results_dict.get("metrics/mAP50(B)", 0),
-                "mAP50-95": results.results_dict.get("metrics/mAP50-95(B)", 0),
-            })
-
+    if results:
         logger.info(f"Fold {fold_idx} completado")
-        return results
+        logger.info(f"  mAP50: {results.results_dict.get('metrics/mAP50(B)', 0):.4f}")
+        logger.info(f"  mAP50-95: {results.results_dict.get('metrics/mAP50-95(B)', 0):.4f}")
+
+    return results
 
 
 def main():

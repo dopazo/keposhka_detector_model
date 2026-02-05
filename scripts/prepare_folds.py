@@ -41,8 +41,10 @@ def main():
         return
 
     image_files = []
-    for ext in ["*.jpg", "*.jpeg", "*.png", "*.JPG", "*.JPEG", "*.PNG"]:
+    for ext in ["*.jpg", "*.jpeg", "*.png"]:
         image_files.extend(images_dir.glob(ext))
+    # Remove duplicates (Windows is case-insensitive)
+    image_files = list({f.name.lower(): f for f in image_files}.values())
 
     # Filtrar solo imágenes con anotación correspondiente
     valid_pairs = []

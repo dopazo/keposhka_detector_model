@@ -4,7 +4,7 @@ model: yolo11n.pt  # Opciones: yolo11n/s/m/l/x
 # Entrenamiento
 epochs: 100
 patience: 20          # Early stopping
-batch: 16             # Ajustar según VRAM
+batch: 32             # Ajustar según VRAM
 imgsz: 640            # Tamaño de imagen
 
 # Optimizador

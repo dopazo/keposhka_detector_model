@@ -1143,9 +1143,9 @@ Estas métricas mejorarán significativamente conforme crezca el dataset.
 
 ### Fase 2: Entrenamiento Inicial
 - [x] Crear `train_config.yaml` con hiperparámetros base
-- [ ] Ejecutar `prepare_folds.py` para generar k=3 folds
-- [ ] Entrenar fold 0 como prueba inicial
-- [ ] Verificar que el entrenamiento completa sin errores
+- [x] Ejecutar `prepare_folds.py` para generar k=3 folds
+- [x] Entrenar fold 0 como prueba inicial
+- [x] Verificar que el entrenamiento completa sin errores
 - [ ] Revisar curvas de pérdida en MLflow/TensorBoard
 - [ ] Entrenar folds restantes (1 y 2)
 
