@@ -1,7 +1,7 @@
 """
-Prepara un split simple 80/20 sin k-fold cross validation.
+Prepares a simple 80/20 split without k-fold cross validation.
 
-Uso:
+Usage:
     uv run python scripts/prepare_simple_split.py
     uv run python scripts/prepare_simple_split.py --split 0.9  # 90/10 split
 """

@@ -1,12 +1,12 @@
 """
-Analiza la distribución de clases en el dataset.
+Analyzes class distribution in the dataset.
 
-Uso:
+Usage:
     uv run python scripts/analyze_dataset.py
 
-Genera:
-    - Reporte en consola con conteos por clase
-    - Archivo JSON con estadísticas detalladas
+Outputs:
+    - Console report with per-class counts
+    - JSON file with detailed statistics
 """
 
 import json
@@ -22,16 +22,16 @@ OUTPUT_FILE = "dataset_analysis.json"
 
 
 def load_classes() -> list:
-    """Carga lista de clases desde classes.txt"""
+    """Loads class list from classes.txt"""
     classes_file = DATA_DIR / "classes.txt"
     if not classes_file.exists():
-        logger.error(f"No se encontró {classes_file}")
+        logger.error(f"Classes file not found: {classes_file}")
         return []
     return [line.strip() for line in classes_file.read_text().splitlines() if line.strip()]
 
 
 def analyze_labels(labels_dir: Path, classes: list) -> dict:
-    """Analiza todos los archivos de anotaciones."""
+    """Analyzes all annotation files."""
     class_counts = Counter()
     boxes_per_image = []
     total_boxes = 0
@@ -68,47 +68,47 @@ def main():
 
     labels_dir = DATA_DIR / "labels"
     if not labels_dir.exists():
-        logger.error(f"No se encontró directorio {labels_dir}")
+        logger.error(f"Labels directory not found: {labels_dir}")
         return
 
     stats = analyze_labels(labels_dir, classes)
 
-    # Reporte en consola
+    # Console report
     print("\n" + "=" * 60)
-    print("ANÁLISIS DEL DATASET")
+    print("DATASET ANALYSIS")
     print("=" * 60)
-    print(f"\nImágenes anotadas: {stats['total_images']}")
-    print(f"Total de boxes: {stats['total_boxes']}")
-    print(f"Boxes por imagen: min={stats['boxes_per_image']['min']}, "
+    print(f"\nAnnotated images: {stats['total_images']}")
+    print(f"Total boxes: {stats['total_boxes']}")
+    print(f"Boxes per image: min={stats['boxes_per_image']['min']}, "
           f"max={stats['boxes_per_image']['max']}, "
           f"avg={stats['boxes_per_image']['avg']:.1f}")
 
     print("\n" + "-" * 60)
-    print("DISTRIBUCIÓN DE CLASES")
+    print("CLASS DISTRIBUTION")
     print("-" * 60)
 
-    # Ordenar por conteo
+    # Sort by count
     sorted_counts = sorted(
         [(classes[cid], count) for cid, count in stats["class_counts"].items()],
         key=lambda x: x[1],
         reverse=True
     )
 
-    # Clases con ejemplos
-    print("\nClases con ejemplos (ordenadas por frecuencia):")
+    # Classes with examples
+    print("\nClasses with examples (sorted by frequency):")
     for label, count in sorted_counts:
         bar = "#" * min(count, 50)
         print(f"  {label:4s}: {count:4d} {bar}")
 
-    # Clases sin ejemplos
+    # Classes without examples
     classes_with_data = set(stats["class_counts"].keys())
     missing_classes = [classes[i] for i in range(len(classes)) if i not in classes_with_data]
 
     if missing_classes:
-        print(f"\n[!] Clases SIN ejemplos ({len(missing_classes)}):")
+        print(f"\n[!] Classes WITHOUT examples ({len(missing_classes)}):")
         print(f"    {', '.join(missing_classes)}")
 
-    # Guardar JSON
+    # Save JSON
     output = {
         "summary": stats,
         "classes": classes,
@@ -118,7 +118,7 @@ def main():
     with open(OUTPUT_FILE, "w") as f:
         json.dump(output, f, indent=2)
 
-    logger.info(f"Estadísticas guardadas en {OUTPUT_FILE}")
+    logger.info(f"Statistics saved to {OUTPUT_FILE}")
 
 
 if __name__ == "__main__":

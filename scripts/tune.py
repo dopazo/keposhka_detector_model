@@ -1,14 +1,14 @@
 """
-Búsqueda de hiperparámetros usando el tuner integrado de Ultralytics.
+Hyperparameter search using the built-in Ultralytics tuner.
 
-Uso:
-    uv run python scripts/tune.py                     # Tuning con config por defecto
-    uv run python scripts/tune.py --iterations 50    # Más iteraciones
-    uv run python scripts/tune.py --epochs 30        # Menos epochs por iteración
-    uv run python scripts/tune.py --fold 1           # Usar fold específico
+Usage:
+    uv run python scripts/tune.py                     # Tuning with default config
+    uv run python scripts/tune.py --iterations 50    # More iterations
+    uv run python scripts/tune.py --epochs 30        # Fewer epochs per iteration
+    uv run python scripts/tune.py --fold 1           # Use specific fold
 
-El tuner usa un algoritmo genético para encontrar los mejores hiperparámetros.
-Los resultados se guardan en runs/tune/ con el mejor best_hyperparameters.yaml
+The tuner uses a genetic algorithm to find the best hyperparameters.
+Results are saved in runs/tune/ with the best best_hyperparameters.yaml
 """
 
 import argparse
@@ -23,40 +23,40 @@ logger = logging.getLogger(__name__)
 
 
 def load_base_config(config_path: str = "configs/train_config.yaml") -> dict:
-    """Carga configuración base para valores fijos durante tuning."""
+    """Loads base configuration for fixed values during tuning."""
     with open(config_path, encoding='utf-8') as f:
         return yaml.safe_load(f)
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Hyperparameter tuning para YOLO")
-    parser.add_argument("--fold", type=int, default=0, help="Fold a usar para tuning (default: 0)")
-    parser.add_argument("--iterations", type=int, default=30, help="Número de iteraciones/experimentos (default: 30)")
-    parser.add_argument("--epochs", type=int, default=30, help="Epochs por iteración (default: 30, menor que entrenamiento final)")
-    parser.add_argument("--model", type=str, default="yolo11n.pt", help="Modelo base (default: yolo11n.pt)")
-    parser.add_argument("--config", type=str, default="configs/train_config.yaml", help="Config base")
+    parser = argparse.ArgumentParser(description="Hyperparameter tuning for YOLO")
+    parser.add_argument("--fold", type=int, default=0, help="Fold to use for tuning (default: 0)")
+    parser.add_argument("--iterations", type=int, default=30, help="Number of iterations/experiments (default: 30)")
+    parser.add_argument("--epochs", type=int, default=30, help="Epochs per iteration (default: 30, less than final training)")
+    parser.add_argument("--model", type=str, default="yolo11n.pt", help="Base model (default: yolo11n.pt)")
+    parser.add_argument("--config", type=str, default="configs/train_config.yaml", help="Base config")
     args = parser.parse_args()
 
-    # Verificar que existe el fold
+    # Verify fold exists
     data_yaml = Path(f"folds/fold_{args.fold}/data.yaml")
     if not data_yaml.exists():
-        logger.error(f"No existe {data_yaml}. Ejecuta prepare_folds.py primero.")
+        logger.error(f"{data_yaml} does not exist. Run prepare_folds.py first.")
         return
 
-    # Cargar config base para valores fijos
+    # Load base config for fixed values
     base_config = load_base_config(args.config)
 
-    logger.info(f"Iniciando hyperparameter tuning")
-    logger.info(f"  Modelo: {args.model}")
+    logger.info(f"Starting hyperparameter tuning")
+    logger.info(f"  Model: {args.model}")
     logger.info(f"  Fold: {args.fold}")
-    logger.info(f"  Iteraciones: {args.iterations}")
-    logger.info(f"  Epochs por iteración: {args.epochs}")
+    logger.info(f"  Iterations: {args.iterations}")
+    logger.info(f"  Epochs per iteration: {args.epochs}")
 
-    # Cargar modelo
+    # Load model
     model = YOLO(args.model)
 
-    # Ejecutar tuning
-    # El tuner optimiza: lr0, lrf, momentum, weight_decay, warmup_epochs,
+    # Run tuning
+    # The tuner optimizes: lr0, lrf, momentum, weight_decay, warmup_epochs,
     # box, cls, hsv_h, hsv_s, hsv_v, degrees, translate, scale, shear,
     # perspective, flipud, fliplr, mosaic, mixup, copy_paste
     result = model.tune(
@@ -76,25 +76,25 @@ def main():
         val=True,
     )
 
-    logger.info("Tuning completado!")
-    logger.info("Revisa runs/tune/ para:")
-    logger.info("  - best_hyperparameters.yaml: mejores hiperparámetros encontrados")
-    logger.info("  - tune_results.csv: resultados de todas las iteraciones")
-    logger.info("  - tune_fitness.png: gráfico de evolución del fitness")
+    logger.info("Tuning completed!")
+    logger.info("Check runs/tune/ for:")
+    logger.info("  - best_hyperparameters.yaml: best hyperparameters found")
+    logger.info("  - tune_results.csv: results from all iterations")
+    logger.info("  - tune_fitness.png: fitness evolution plot")
 
-    # Mostrar mejores hiperparámetros
+    # Show best hyperparameters
     best_hp_path = Path("runs/tune/best_hyperparameters.yaml")
     if best_hp_path.exists():
         print("\n" + "=" * 60)
-        print("MEJORES HIPERPARÁMETROS ENCONTRADOS")
+        print("BEST HYPERPARAMETERS FOUND")
         print("=" * 60)
         with open(best_hp_path) as f:
             best_hp = yaml.safe_load(f)
         for key, value in best_hp.items():
             print(f"  {key}: {value}")
 
-        print("\nPara usar estos hiperparámetros, actualiza configs/train_config.yaml")
-        print("o crea un nuevo archivo de configuración con estos valores.")
+        print("\nTo use these hyperparameters, update configs/train_config.yaml")
+        print("or create a new configuration file with these values.")
 
 
 if __name__ == "__main__":

@@ -1,9 +1,9 @@
 """
-Entrena modelo YOLO v11 con k-fold cross validation.
+Trains YOLO v11 model with k-fold cross validation.
 
-Uso:
-    uv run python scripts/train.py                    # Entrena todos los folds
-    uv run python scripts/train.py --fold 0          # Entrena solo fold 0
+Usage:
+    uv run python scripts/train.py                    # Train all folds
+    uv run python scripts/train.py --fold 0          # Train only fold 0
     uv run python scripts/train.py --config custom.yaml
 """
 
@@ -26,7 +26,7 @@ if "mlflow" in callbacks.default_callbacks:
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 logger = logging.getLogger(__name__)
 
-K = 3  # Número de folds
+K = 3  # Number of folds
 
 
 def load_config(config_path: str = "configs/train_config.yaml") -> dict:
@@ -35,18 +35,18 @@ def load_config(config_path: str = "configs/train_config.yaml") -> dict:
 
 
 def train_fold(fold_idx: int, config: dict):
-    """Entrena un fold específico."""
+    """Trains a specific fold."""
     fold_dir = Path(f"folds/fold_{fold_idx}")
     data_yaml = fold_dir / "data.yaml"
 
     if not data_yaml.exists():
-        logger.error(f"No existe {data_yaml}. Ejecuta prepare_folds.py primero.")
+        logger.error(f"{data_yaml} does not exist. Run prepare_folds.py first.")
         return None
 
-    # Cargar modelo base
+    # Load base model
     model = YOLO(config["model"])
 
-    # Entrenar
+    # Train
     results = model.train(
         data=str(data_yaml),
         epochs=config["epochs"],
@@ -84,7 +84,7 @@ def train_fold(fold_idx: int, config: dict):
     )
 
     if results:
-        logger.info(f"Fold {fold_idx} completado")
+        logger.info(f"Fold {fold_idx} completed")
         logger.info(f"  mAP50: {results.results_dict.get('metrics/mAP50(B)', 0):.4f}")
         logger.info(f"  mAP50-95: {results.results_dict.get('metrics/mAP50-95(B)', 0):.4f}")
 
@@ -92,11 +92,11 @@ def train_fold(fold_idx: int, config: dict):
 
 
 def train_single(data_yaml: str, config: dict, name: str = "full"):
-    """Entrena con un data.yaml específico (sin folds)."""
+    """Trains with a specific data.yaml (without folds)."""
     data_path = Path(data_yaml)
 
     if not data_path.exists():
-        logger.error(f"No existe {data_yaml}")
+        logger.error(f"{data_yaml} does not exist")
         return None
 
     model = YOLO(config["model"])
@@ -138,7 +138,7 @@ def train_single(data_yaml: str, config: dict, name: str = "full"):
     )
 
     if results:
-        logger.info(f"Entrenamiento completado")
+        logger.info(f"Training completed")
         logger.info(f"  mAP50: {results.results_dict.get('metrics/mAP50(B)', 0):.4f}")
         logger.info(f"  mAP50-95: {results.results_dict.get('metrics/mAP50-95(B)', 0):.4f}")
 
@@ -147,29 +147,29 @@ def train_single(data_yaml: str, config: dict, name: str = "full"):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--fold", type=int, default=None, help="Fold específico (0-2)")
-    parser.add_argument("--data", type=str, default=None, help="Path a data.yaml (sin folds)")
-    parser.add_argument("--name", type=str, default="full", help="Nombre del experimento")
+    parser.add_argument("--fold", type=int, default=None, help="Specific fold (0-2)")
+    parser.add_argument("--data", type=str, default=None, help="Path to data.yaml (without folds)")
+    parser.add_argument("--name", type=str, default="full", help="Experiment name")
     parser.add_argument("--config", type=str, default="configs/train_config.yaml")
     args = parser.parse_args()
 
     config = load_config(args.config)
 
-    # Modo sin folds: usar --data directamente
+    # No-folds mode: use --data directly
     if args.data is not None:
-        logger.info(f"Entrenando con {args.data}")
+        logger.info(f"Training with {args.data}")
         train_single(args.data, config, args.name)
         return
 
-    # Modo con folds
+    # Folds mode
     if args.fold is not None:
         if args.fold < 0 or args.fold >= K:
-            logger.error(f"Fold debe estar entre 0 y {K-1}")
+            logger.error(f"Fold must be between 0 and {K-1}")
             return
-        logger.info(f"Entrenando fold {args.fold}")
+        logger.info(f"Training fold {args.fold}")
         train_fold(args.fold, config)
     else:
-        logger.info(f"Entrenando todos los folds (k={K})")
+        logger.info(f"Training all folds (k={K})")
         for fold_idx in range(K):
             print(f"\n{'='*50}")
             print(f"FOLD {fold_idx}")

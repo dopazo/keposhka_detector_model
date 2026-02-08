@@ -1,10 +1,10 @@
 """
-Evalua modelos entrenados y genera reporte de metricas.
+Evaluates trained models and generates metrics report.
 
-Uso:
-    uv run python scripts/evaluate.py                                    # Evalua todos los folds
-    uv run python scripts/evaluate.py --fold 0                          # Evalua solo fold 0
-    uv run python scripts/evaluate.py --model path/best.pt --data d.yaml # Evalua modelo especifico
+Usage:
+    uv run python scripts/evaluate.py                                    # Evaluate all folds
+    uv run python scripts/evaluate.py --fold 0                          # Evaluate only fold 0
+    uv run python scripts/evaluate.py --model path/best.pt --data d.yaml # Evaluate specific model
 """
 
 import argparse
@@ -18,14 +18,14 @@ from ultralytics import YOLO
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 logger = logging.getLogger(__name__)
 
-K = 3  # Numero de folds
+K = 3  # Number of folds
 
 
 def evaluate_model(model_path: str, data_yaml: str, name: str = "model") -> dict:
-    """Evalua un modelo en un dataset dado."""
+    """Evaluates a model on a given dataset."""
     model_path = Path(model_path)
     if not model_path.exists():
-        logger.warning(f"No se encontro modelo: {model_path}")
+        logger.warning(f"Model not found: {model_path}")
         return None
 
     logger.info(f"Evaluando {name}: {model_path}")
@@ -50,7 +50,7 @@ def evaluate_model(model_path: str, data_yaml: str, name: str = "model") -> dict
 
 
 def evaluate_fold(fold_idx: int) -> dict:
-    """Evalua el modelo de un fold en su conjunto de validacion."""
+    """Evaluates a fold's model on its validation set."""
     weights_path = Path(f"runs/fold_{fold_idx}/weights/best.pt")
     data_yaml = Path(f"folds/fold_{fold_idx}/data.yaml")
     result = evaluate_model(weights_path, data_yaml, name=f"fold_{fold_idx}")
@@ -60,12 +60,12 @@ def evaluate_fold(fold_idx: int) -> dict:
 
 
 def print_results(results: list, mode: str = "single"):
-    """Imprime reporte de resultados."""
+    """Prints results report."""
     print("\n" + "=" * 60)
     if mode == "kfold":
-        print("RESULTADOS K-FOLD CROSS VALIDATION")
+        print("K-FOLD CROSS VALIDATION RESULTS")
     else:
-        print("RESULTADOS DE EVALUACION")
+        print("EVALUATION RESULTS")
     print("=" * 60)
 
     for r in results:
@@ -85,14 +85,14 @@ def print_results(results: list, mode: str = "single"):
             detected = [(name, m) for name, m in sorted_classes if m["ap50"] > 0]
             undetected = [(name, m) for name, m in sorted_classes if m["ap50"] == 0]
 
-            print(f"\n  Clases detectadas ({len(detected)}/{len(sorted_classes)}):")
+            print(f"\n  Detected classes ({len(detected)}/{len(sorted_classes)}):")
             for name, m in detected:
                 bar = "#" * int(m["ap50"] * 20)
                 print(f"    {name:4s}: AP50={m['ap50']:.3f} {bar}")
 
             if undetected:
                 names = [name for name, _ in undetected]
-                print(f"\n  Clases NO detectadas ({len(undetected)}):")
+                print(f"\n  Undetected classes ({len(undetected)}):")
                 print(f"    {', '.join(names)}")
 
     if len(results) > 1:
@@ -105,7 +105,7 @@ def print_results(results: list, mode: str = "single"):
             "std_mAP50-95": np.std([r["mAP50-95"] for r in results]),
         }
         print(f"\n{'=' * 60}")
-        print("PROMEDIO (+/- std):")
+        print("AVERAGE (+/- std):")
         print(f"  mAP50:     {avg_metrics['mAP50']:.4f} +/- {avg_metrics['std_mAP50']:.4f}")
         print(f"  mAP50-95:  {avg_metrics['mAP50-95']:.4f} +/- {avg_metrics['std_mAP50-95']:.4f}")
         print(f"  Precision: {avg_metrics['precision']:.4f}")
@@ -113,11 +113,11 @@ def print_results(results: list, mode: str = "single"):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Evaluar modelos YOLO entrenados")
-    parser.add_argument("--fold", type=int, default=None, help="Fold especifico a evaluar")
-    parser.add_argument("--model", type=str, default=None, help="Ruta al modelo .pt")
-    parser.add_argument("--data", type=str, default=None, help="Ruta al data.yaml")
-    parser.add_argument("--output", type=str, default="evaluation_results.json", help="Archivo de salida JSON")
+    parser = argparse.ArgumentParser(description="Evaluate trained YOLO models")
+    parser.add_argument("--fold", type=int, default=None, help="Specific fold to evaluate")
+    parser.add_argument("--model", type=str, default=None, help="Path to .pt model")
+    parser.add_argument("--data", type=str, default=None, help="Path to data.yaml")
+    parser.add_argument("--output", type=str, default="evaluation_results.json", help="JSON output file")
     args = parser.parse_args()
 
     results = []
@@ -141,7 +141,7 @@ def main():
         print_results(results, mode="kfold")
 
     if not results:
-        logger.error("No hay resultados para evaluar")
+        logger.error("No results to evaluate")
         return
 
     # Save results
@@ -149,7 +149,7 @@ def main():
     with open(args.output, "w", encoding="utf-8") as f:
         json.dump(output, f, indent=2)
 
-    logger.info(f"Resultados guardados en {args.output}")
+    logger.info(f"Results saved to {args.output}")
 
 
 if __name__ == "__main__":
