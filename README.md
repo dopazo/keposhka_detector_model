@@ -6,8 +6,7 @@ YOLO v11 object detection model for detecting and classifying characters from th
 
 - Detects and classifies 70 character classes (digits, letters, digraphs)
 - Handles various image types: digital images, camera photos, arc text, perspective views
-- 3-fold cross-validation for robust performance estimation
-- MLflow experiment tracking
+- Two training modes: simple split (recommended for small datasets) and k-fold cross-validation
 - TFLite FP16 export for mobile deployment
 
 ## Requirements
@@ -52,28 +51,54 @@ uv run python scripts/analyze_dataset.py
 
 Outputs class distribution and identifies missing classes.
 
-### 2. Prepare K-Fold Splits
+### 2. Training
+
+There are two training modes. Choose based on your dataset size:
+
+#### Option A: Simple Split (Recommended for small datasets)
+
+For datasets with few images (e.g. <100), a simple train/val split is more practical than cross-validation. Cross-validation divides the data into multiple folds, which with very few images leaves too few samples per fold for meaningful training.
 
 ```bash
+# Step 1: Create 90/10 train/val split
+uv run python scripts/prepare_simple_split.py
+
+# You can customize the split ratio and seed
+uv run python scripts/prepare_simple_split.py --split 0.8 --seed 42
+
+# Step 2: Train
+uv run python scripts/train.py --data data_split/data.yaml --name my_experiment
+```
+
+This creates the split in `data_split/` with `train/` and `val/` subdirectories.
+
+#### Option B: K-Fold Cross-Validation
+
+For larger datasets, k-fold cross-validation (k=3) gives a more robust performance estimate by training on different data splits.
+
+```bash
+# Step 1: Create k-fold splits
 uv run python scripts/prepare_folds.py
+
+# Step 2: Train all folds
+uv run python scripts/train.py
+
+# Or train a specific fold
+uv run python scripts/train.py --fold 0
 ```
 
 Creates `folds/fold_{0-2}/` with train/val splits.
 
-### 3. Train
+#### Custom config
+
+Both modes support a custom config file:
 
 ```bash
-# Train all folds
-uv run python scripts/train.py
-
-# Train specific fold
-uv run python scripts/train.py --fold 0
-
-# Use custom config
-uv run python scripts/train.py --config configs/custom.yaml
+uv run python scripts/train.py --config configs/custom.yaml --data data_split/data.yaml --name my_exp
+uv run python scripts/train.py --config configs/custom.yaml --fold 0
 ```
 
-### 4. Evaluate
+### 3. Evaluate
 
 ```bash
 uv run python scripts/evaluate.py
@@ -81,14 +106,14 @@ uv run python scripts/evaluate.py
 
 Outputs mAP50, mAP50-95, precision, and recall with cross-fold statistics.
 
-### 5. Predict
+### 4. Predict
 
 ```bash
 uv run python scripts/predict.py image.jpg --save
 uv run python scripts/predict.py images_dir/ --conf 0.5
 ```
 
-### 6. Export to TFLite
+### 5. Export to TFLite
 
 ```bash
 uv add tensorflow
@@ -107,15 +132,11 @@ Training hyperparameters are in `configs/train_config.yaml`:
 | batch | 16 | Batch size (reduce if OOM) |
 | imgsz | 640 | Input image size |
 
-## MLflow
+## MLflow (Disabled)
 
-View experiment results:
+MLflow experiment tracking is currently disabled due to a Windows compatibility issue. Ultralytics' MLflow callback fails because Windows paths with drive letters (e.g., `C:\...`) are incorrectly parsed as URI schemes.
 
-```bash
-mlflow ui
-```
-
-Open http://localhost:5000
+Training metrics are logged to console and saved in the `runs/` directory by Ultralytics.
 
 ## Class Mapping
 
