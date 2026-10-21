@@ -28,6 +28,12 @@ uv run python scripts/analyze_dataset.py                                        
 uv run python scripts/prepare_folds.py                                          # Crear k-fold splits (k=3)
 uv run python scripts/prepare_simple_split.py [--split 0.9] [--seed 42]         # Crear split simple 90/10 sin folds
 uv run python scripts/train.py [--fold 0] [--config custom.yaml]                # Entrenar con k-fold
+# Current best recipe (final model; ~1 h on an RTX 4060): import new labeled images, split with charts x3, train 200 fixed epochs
+uv run python scripts/import_from_labeler.py                                    # copies "done" images from ../keposhka_labeling
+uv run python scripts/prepare_holdout_split.py --out data_split_final --test none --oversample 3 keposhka_abecedario keposhka_abecedario2 keposhka_abecedario_a_mano letra_CH letra_G letra_GH letra_J letra_L letra_Q letra_SH letra_TH letra_X letra_Z
+uv run python scripts/train.py --data data_split_final/data.yaml --name final --config configs/exp_base.yaml
+# Compare models on a fixed hold-out (use last.pt, never best.pt picked on the same set): --test <stems> instead of none
+uv run python scripts/eval_holdout.py --data data_split_A/data.yaml runs/detect/runs/final/weights/last.pt
 uv run python scripts/train.py --data data_split/data.yaml --name exp_name      # Entrenar con split simple
 uv run python scripts/evaluate.py [--fold 0]                                    # Evaluar modelo entrenado
 uv run python scripts/predict.py image.jpg [--model path] [--conf 0.5] [--save] # Inferencia sobre imagen
@@ -56,7 +62,7 @@ uv run python -c "import torch; print(torch.cuda.is_available())"
 
 ### Key Augmentation Settings (small dataset, text-specific)
 - **Mosaic 1.0** (max): most impactful augmentation for 39-image dataset
-- **Copy-paste 0.3**: compensates class imbalance by copying objects between images
+- **Copy-paste 0.0**: Ultralytics copy_paste needs segmentation masks, so it is a no-op on our bbox labels (it was 0.3 and never did anything). Class imbalance is handled with chart oversampling and `scripts/make_synthetic.py`
 - **Freeze backbone (10 layers)**: transfer learning to prevent overfitting
 - **No mixup**: overlapping blended characters confuse text detection
 - Rotation ±20° (for arc/curved text)

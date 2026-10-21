@@ -30,10 +30,10 @@ def ring_color(crop):
     return crop[m].mean(0)
 
 
-def pick_crop(options, patch_color, max_dist):
-    """Crop of this class whose own background is closest to the colour where it will be pasted."""
-    best = min(options, key=lambda o: np.linalg.norm(o[1] - patch_color))
-    return best[0] if np.linalg.norm(best[1] - patch_color) <= max_dist else None
+def pick_crop(options, patch_color, max_dist, rng):
+    """Random crop of this class whose own background is within max_dist of the colour where it will be pasted."""
+    ok = [o for o in options if np.linalg.norm(o[1] - patch_color) <= max_dist]
+    return rng.choice(ok)[0] if ok else None
 
 
 def load_train(split: Path):
@@ -107,7 +107,7 @@ def make_image(crops, bgs, classes, rng):
                 if x + w0 + h >= SIZE - 5 or yy + h >= SIZE - 5 or yy < 5:
                     break
                 patch = canvas[yy:yy + h, x:x + w0 + h // 2].reshape(-1, 3).mean(0)
-                crop = pick_crop(crops[c], patch, MAX_COLOR_DIST)
+                crop = pick_crop(crops[c], patch, MAX_COLOR_DIST, rng)
                 if crop is None:  # no example of this class fits the local colours: try another class
                     continue
                 w = max(8, int(h * crop.shape[1] / crop.shape[0]))
@@ -137,6 +137,8 @@ def main():
     n_boxes = 0
     for i in range(args.n):
         img, labels = make_image(crops, bgs, classes, rng)
+        while len(labels) < 8:  # a color-matching failure left the canvas almost empty
+            img, labels = make_image(crops, bgs, classes, rng)
         stem = f"syn_{i:04d}"
         cv2.imwrite(str(args.split / "train" / "images" / f"{stem}.jpg"), img, [cv2.IMWRITE_JPEG_QUALITY, 92])
         (args.split / "train" / "labels" / f"{stem}.txt").write_text("".join(

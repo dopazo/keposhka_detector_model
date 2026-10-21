@@ -31,7 +31,7 @@ flipud: 0.0           # No vertical flip (text)
 fliplr: 0.0           # No horizontal flip (directional text)
 mosaic: 1.0           # MAX: most important augmentation for small datasets
 close_mosaic: 30      # Disable mosaic last 30 epochs for clean fine-tuning
-copy_paste: 0.3       # Copy objects between images: compensates class imbalance
+copy_paste: 0.0       # Needs segmentation masks: with bbox-only labels 0.3 did nothing. Use oversampling/synthetic data instead
 mixup: 0.0            # DISABLED: blending images confuses character detection
 erasing: 0.2          # Random erasing: improves robustness to partial occlusions
 
