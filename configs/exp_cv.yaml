@@ -1,0 +1,43 @@
+# Base model
+model: yolo11s.pt     # Small: more capacity for 70 classes (yolo11n is insufficient)
+
+# Training
+epochs: 100          # cross-validation budget (2 folds)
+patience: 100
+batch: 4              # Reduced: more gradient steps per epoch (~8 steps vs ~4 with batch=8)
+imgsz: 1280           # Image size (keep for small characters)
+cos_lr: true          # Cosine LR scheduler: smoother decay
+
+# Transfer learning
+freeze: 10            # Freeze backbone (layers 0-9): prevents overfitting with few data
+
+# Optimizer
+optimizer: AdamW
+lr0: 0.001            # Initial learning rate
+lrf: 0.01             # Final learning rate (lr0 * lrf)
+momentum: 0.937
+weight_decay: 0.0005
+
+# Augmentation
+hsv_h: 0.015          # Hue
+hsv_s: 0.7            # Saturation
+hsv_v: 0.4            # Value
+degrees: 20.0         # Rotation ±20° (for text on arcs)
+translate: 0.15       # Slightly more translation for variety
+scale: 0.3            # Reduced from 0.5: avoid shrinking small characters too much
+shear: 2.0
+perspective: 0.0005   # Perspective distortion
+flipud: 0.0           # No vertical flip (text)
+fliplr: 0.0           # No horizontal flip (directional text)
+mosaic: 1.0           # MAX: most important augmentation for small datasets
+close_mosaic: 15
+copy_paste: 0.3       # Copy objects between images: compensates class imbalance
+mixup: 0.0            # DISABLED: blending images confuses character detection
+erasing: 0.2          # Random erasing: improves robustness to partial occlusions
+
+# Other
+workers: 8
+device: 0             # GPU index
+project: runs
+exist_ok: true
+verbose: true
