@@ -37,7 +37,12 @@ uv run python scripts/eval_holdout.py --data data_split_A/data.yaml runs/detect/
 uv run python scripts/train.py --data data_split/data.yaml --name exp_name      # Entrenar con split simple
 uv run python scripts/evaluate.py [--fold 0]                                    # Evaluar modelo entrenado
 uv run python scripts/predict.py image.jpg [--model path] [--conf 0.5] [--save] # Inferencia sobre imagen
-uv run python scripts/export.py [--fold 0]                                      # Exportar a TFLite
+uv run python scripts/export.py [--model w.pt] [--imgsz 1280]                   # Exportar a TFLite (ver receta abajo)
+# Export to TFLite FP16 at 1280 (the training size; at 640 stage-screen accuracy drops from 91% to 61%).
+# TensorFlow has no Python 3.13 wheels, so export from an isolated 3.12 env (does not touch .venv); result: exports/keposhka_detector.tflite (single file)
+uv run --no-project --python 3.12 --with ultralytics==8.4.9 --with "tensorflow<=2.19.0" --with tf_keras --with onnx --with onnx2tf --with onnxslim --with onnxruntime --with sng4onnx --with onnx_graphsurgeon --with ai_edge_litert --with protobuf python scripts/export.py --model runs/detect/runs/final/weights/last.pt
+# Check the .tflite against PyTorch (letterbox + RGB/255 + decode + NMS, as the app must do it): scripts/check_tflite.py (usage in its docstring)
+# NOTE: a plain `uv run` re-syncs torch to the CPU build (uv.lock). For GPU work use `uv run --no-sync ...`; if torch turns CPU-only, reinstall with the cu128 command above.
 
 # View MLflow experiments (DISABLED - see Known Issues)
 # mlflow ui  # Opens http://localhost:5000
